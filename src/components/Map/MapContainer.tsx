@@ -26,7 +26,7 @@ interface MapComponentProps {
 
 // Create custom markers - using proper HTML string for Leaflet
 const createStartIcon = () => {
-  return L.divIcon({
+  return new L.DivIcon({
     html: `<div class="marker-start-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><circle cx="12" cy="12" r="10"/></svg></div>`,
     className: 'custom-marker-icon',
     iconSize: [24, 24],
@@ -35,7 +35,7 @@ const createStartIcon = () => {
 };
 
 const createEndIcon = () => {
-  return L.divIcon({
+  return new L.DivIcon({
     html: `<div class="marker-end-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><rect width="18" height="18" rx="2"/></svg></div>`,
     className: 'custom-marker-icon',
     iconSize: [24, 24],
@@ -44,7 +44,7 @@ const createEndIcon = () => {
 };
 
 const createVantageIcon = () => {
-  return L.divIcon({
+  return new L.DivIcon({
     html: `<div class="bg-tactical-lightBlue rounded-full border-2 border-white shadow-lg p-1">
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
     </div>`,
@@ -91,23 +91,6 @@ const SetViewOnLoad: React.FC<{ center: Coordinates; zoom: number }> = ({ center
   return null;
 };
 
-// Create initial map setup component
-const MapSetup: React.FC<{ defaultCenter: Coordinates; defaultZoom: number }> = ({ 
-  defaultCenter, 
-  defaultZoom 
-}) => {
-  const mapRef = useRef<L.Map | null>(null);
-  
-  return (
-    <>
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      />
-    </>
-  );
-};
-
 const MapComponent: React.FC<MapComponentProps> = ({
   mode,
   start,
@@ -126,12 +109,11 @@ const MapComponent: React.FC<MapComponentProps> = ({
     <div className="w-full h-full rounded-lg overflow-hidden border border-muted">
       <MapContainer
         className="h-full w-full"
-        center={[defaultCenter.lat, defaultCenter.lng]}
-        zoom={defaultZoom}
+        // Note: We don't set center and zoom as props, but use the SetViewOnLoad component instead
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          // Note: attribution is passed through the React-Leaflet's TileLayer automatically
         />
         
         <SetViewOnLoad 
@@ -144,7 +126,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
         {/* Render start marker */}
         {start && (
           <Marker 
-            position={[start.lat, start.lng]}
+            position={[start.lat, start.lng]} 
             icon={createStartIcon()}
           />
         )}
@@ -152,7 +134,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
         {/* Render end marker */}
         {end && (
           <Marker 
-            position={[end.lat, end.lng]}
+            position={[end.lat, end.lng]} 
             icon={createEndIcon()}
           />
         )}
