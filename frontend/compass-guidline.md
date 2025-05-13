@@ -6,9 +6,10 @@ This document serves as a living checklist and guideline for developing the Tact
 
 ## 1. Project Setup & Environment
 
-- [ ] Ensure all dependencies are installed (`npm install`)
-- [ ] Verify development server runs (`npm run dev`)
-- [ ] Confirm map loads and basic UI renders
+- [x] Ensure all dependencies are installed (`npm install`)
+- [x] Verify development server runs (`npm run dev`)
+- [x] Confirm map loads and basic UI renders
+- [x] Create unified root .gitignore for frontend (React/TypeScript) and backend (Python/FastAPI)
 
 ---
 
@@ -107,15 +108,16 @@ This document serves as a living checklist and guideline for developing the Tact
 
 ### 11.1. Setup
 
-- [ ] Create `backend/` directory with FastAPI project structure
-- [ ] Add `requirements.txt` (FastAPI, uvicorn, etc.)
-- [ ] Implement health check endpoint (`/health`)
+- [x] Create `backend/` directory with FastAPI project structure
+- [x] Add `requirements.txt` (FastAPI, uvicorn, etc.)
+- [x] Implement health check endpoint (`/health`)
+- [x] Refactor backend to best-practice folder structure
 
 ### 11.2. Core Endpoints
 
-- [ ] POST `/api/plan-route` – Calculate optimal route
-- [ ] GET `/api/suggest-vantage` – Suggest vantage point
-- [ ] Define and document Pydantic models for all request/response types
+- [x] POST `/api/plan-route` – Calculate optimal route
+- [x] GET `/api/suggest-vantage` – Suggest vantage point
+- [x] Define and document Pydantic models for all request/response types
 
 ### 11.3. Logic & Services
 
