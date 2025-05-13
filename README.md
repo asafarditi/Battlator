@@ -1,73 +1,102 @@
-# Welcome to your Lovable project
 
-## Project info
+# Tactical Route Planner Boilerplate
 
-**URL**: https://lovable.dev/projects/a46d011d-3bb9-40eb-896c-5f7099b374a5
+A full-stack geospatial intelligence application for route planning with threat zone avoidance, built for rapid hackathon development.
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+- **Interactive Map**: Browse and interact with a map interface
+- **Marker Placement**: Add start/end points for route planning
+- **Threat Zone Drawing**: Draw areas to avoid during route planning
+- **Route Planning**: Calculate optimal routes avoiding threat zones
+- **Vantage Point Analysis**: Identify optimal observation positions with view-shed
+- **Layer Controls**: Toggle map features on/off
 
-**Use Lovable**
+## Installation
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/a46d011d-3bb9-40eb-896c-5f7099b374a5) and start prompting.
+```bash
+# Clone the repository
+git clone <repo-url>
 
-Changes made via Lovable will be committed automatically to this repo.
+# Navigate to project folder
+cd tactical-route-planner
 
-**Use your preferred IDE**
+# Install dependencies
+npm install
+```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Development
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The application will be available at `http://localhost:8080`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Project Structure
 
-**Use GitHub Codespaces**
+### Frontend
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```
+src/
+├── components/         # UI components
+│   ├── InfoPanel/      # Information display components
+│   └── Map/            # Map-related components
+├── hooks/              # Custom React hooks
+├── pages/              # Application pages
+├── services/           # API service layer
+├── types/              # TypeScript type definitions
+└── utils/              # Utility functions and mock data
+```
 
-## What technologies are used for this project?
+### Backend API (Stubbed)
 
-This project is built with:
+The backend is currently stubbed with mock implementations for:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **POST /api/plan-route**: Calculate a route between two points
+  - Input: `{ start, end, threatAreas }`
+  - Output: `{ route: { path, distance, elevation, riskScore } }`
+  
+- **GET /api/suggest-vantage**: Find optimal observation point
+  - Output: `{ position, visibilityPolygon, coverageScore }`
 
-## How can I deploy this project?
+## Implementation Details
 
-Simply open [Lovable](https://lovable.dev/projects/a46d011d-3bb9-40eb-896c-5f7099b374a5) and click on Share -> Publish.
+### A* Pathfinding (Stubbed)
 
-## Can I connect a custom domain to my Lovable project?
+The route planning uses a mock implementation that simulates A* pathfinding:
 
-Yes, you can!
+- Each threat area increases the "cost" of traveling through that region
+- The algorithm balances the shortest path with threat avoidance
+- The route includes metadata about distance, elevation gain, and risk score
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### View-shed Analysis (Stubbed)
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+The vantage point finder uses a mock implementation that:
+
+- Calculates a theoretical position with good visibility of the route
+- Generates a polygon representing the observable area
+- Assigns a coverage score indicating visibility quality
+
+## Extension Points
+
+Areas ready for hackathon development:
+
+1. **Real A* Implementation**: Replace mock route planning with actual algorithm
+2. **Terrain Data**: Add elevation data for more realistic route planning
+3. **Multiple Routes**: Implement alternative route suggestions
+4. **Threat Analysis**: Add more detailed threat scoring and visualization
+5. **Real-time Updates**: Add WebSocket for collaborative planning
+6. **Authentication**: Add user authentication and route saving
+
+## Technologies Used
+
+- React with TypeScript
+- Leaflet for interactive maps
+- Tailwind CSS for styling
+- Mock API services (ready for real backend integration)
+
+## License
+
+This project is meant as a hackathon starting point and is available for unrestricted use.

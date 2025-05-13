@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -52,6 +53,21 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				tactical: {
+					green: '#2a9d8f',
+					blue: '#264653',
+					red: '#e76f51',
+					yellow: '#e9c46a',
+					orange: '#f4a261',
+					lightBlue: '#a8dadc',
+					gray: '#303841',
+				},
+				threat: {
+					DEFAULT: 'rgba(231, 111, 81, 0.4)',
+					high: 'rgba(231, 76, 60, 0.5)',
+					medium: 'rgba(243, 156, 18, 0.5)',
+					low: 'rgba(46, 204, 113, 0.5)',
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
@@ -84,11 +100,16 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse-slow': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.5' },
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-slow': 'pulse-slow 3s infinite',
 			}
 		}
 	},
