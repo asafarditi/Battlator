@@ -127,7 +127,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
         {start && (
           <Marker 
             position={[start.lat, start.lng]} 
-            icon={createStartIcon()}
+            icon={createStartIcon() as L.Icon}
           />
         )}
         
@@ -135,7 +135,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
         {end && (
           <Marker 
             position={[end.lat, end.lng]} 
-            icon={createEndIcon()}
+            icon={createEndIcon() as L.Icon}
           />
         )}
         
@@ -174,7 +174,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
           <>
             <Marker
               position={[vantagePoint.position.lat, vantagePoint.position.lng]}
-              icon={createVantageIcon()}
+              icon={createVantageIcon() as L.Icon}
             />
             
             {visibleLayers.viewshed && (
