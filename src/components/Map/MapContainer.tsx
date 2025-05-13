@@ -1,10 +1,9 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, Polygon, Polyline, Circle, useMap, useMapEvents } from 'react-leaflet';
 import { MapMode, Coordinates, ThreatArea, Route, VantagePoint } from '../../types';
-import { Map as LeafletMapType } from 'leaflet';
 
 // Import Marker Icons
 import { Crosshair, MapPin, Flag, Eye } from 'lucide-react';
@@ -25,20 +24,35 @@ interface MapComponentProps {
   onMapClick: (latLng: Coordinates) => void;
 }
 
-// Create custom markers
-const createMarkerIcon = (component: React.ReactNode) => {
+// Create custom markers - using proper HTML string for Leaflet
+const createStartIcon = () => {
   return L.divIcon({
-    html: renderToString(component),
+    html: `<div class="marker-start-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><circle cx="12" cy="12" r="10"/></svg></div>`,
     className: 'custom-marker-icon',
     iconSize: [24, 24],
     iconAnchor: [12, 12]
   });
 };
 
-// Helper function to render React component to string (simplified mock implementation)
-function renderToString(component: React.ReactNode): string {
-  return `<div class="flex items-center justify-center w-6 h-6">${component}</div>`;
-}
+const createEndIcon = () => {
+  return L.divIcon({
+    html: `<div class="marker-end-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><rect width="18" height="18" rx="2"/></svg></div>`,
+    className: 'custom-marker-icon',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
+  });
+};
+
+const createVantageIcon = () => {
+  return L.divIcon({
+    html: `<div class="bg-tactical-lightBlue rounded-full border-2 border-white shadow-lg p-1">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+    </div>`,
+    className: 'custom-marker-icon',
+    iconSize: [28, 28],
+    iconAnchor: [14, 14]
+  });
+};
 
 const MapEvents: React.FC<{ onClick: (latLng: Coordinates) => void; mode: MapMode }> = ({ 
   onClick, 
@@ -77,6 +91,23 @@ const SetViewOnLoad: React.FC<{ center: Coordinates; zoom: number }> = ({ center
   return null;
 };
 
+// Create initial map setup component
+const MapSetup: React.FC<{ defaultCenter: Coordinates; defaultZoom: number }> = ({ 
+  defaultCenter, 
+  defaultZoom 
+}) => {
+  const mapRef = useRef<L.Map | null>(null);
+  
+  return (
+    <>
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      />
+    </>
+  );
+};
+
 const MapComponent: React.FC<MapComponentProps> = ({
   mode,
   start,
@@ -91,14 +122,12 @@ const MapComponent: React.FC<MapComponentProps> = ({
   const defaultCenter: Coordinates = { lat: 35.6764, lng: 139.6500 };
   const defaultZoom = 13;
   
-  // MapContainer should only be mounted once
   return (
     <div className="w-full h-full rounded-lg overflow-hidden border border-muted">
       <MapContainer
         className="h-full w-full"
-        whenCreated={(mapInstance: any) => {
-          mapInstance.setView([defaultCenter.lat, defaultCenter.lng], defaultZoom);
-        }}
+        center={[defaultCenter.lat, defaultCenter.lng]}
+        zoom={defaultZoom}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -115,16 +144,16 @@ const MapComponent: React.FC<MapComponentProps> = ({
         {/* Render start marker */}
         {start && (
           <Marker 
-            position={[start.lat, start.lng]} 
-            icon={createMarkerIcon(`<div class="marker-start-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><circle cx="12" cy="12" r="10"/></svg></div>`)}
+            position={[start.lat, start.lng]}
+            icon={createStartIcon()}
           />
         )}
         
         {/* Render end marker */}
         {end && (
           <Marker 
-            position={[end.lat, end.lng]} 
-            icon={createMarkerIcon(`<div class="marker-end-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><rect width="18" height="18" rx="2"/></svg></div>`)}
+            position={[end.lat, end.lng]}
+            icon={createEndIcon()}
           />
         )}
         
@@ -163,9 +192,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
           <>
             <Marker
               position={[vantagePoint.position.lat, vantagePoint.position.lng]}
-              icon={createMarkerIcon(`<div class="bg-tactical-lightBlue rounded-full border-2 border-white shadow-lg p-1">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-              </div>`)}
+              icon={createVantageIcon()}
             />
             
             {visibleLayers.viewshed && (
