@@ -95,13 +95,14 @@ const MapComponent: React.FC<MapComponentProps> = ({
   return (
     <div className="w-full h-full rounded-lg overflow-hidden border border-muted">
       <MapContainer
-        center={[defaultCenter.lat, defaultCenter.lng]}
-        zoom={defaultZoom}
         className="h-full w-full"
+        whenCreated={(mapInstance: any) => {
+          mapInstance.setView([defaultCenter.lat, defaultCenter.lng], defaultZoom);
+        }}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         
         <SetViewOnLoad 
@@ -115,12 +116,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
         {start && (
           <Marker 
             position={[start.lat, start.lng]} 
-            icon={L.divIcon({
-              html: `<div class="marker-start-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><circle cx="12" cy="12" r="10"/></svg></div>`,
-              className: '',
-              iconSize: [24, 24],
-              iconAnchor: [12, 12]
-            })}
+            icon={createMarkerIcon(`<div class="marker-start-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><circle cx="12" cy="12" r="10"/></svg></div>`)}
           />
         )}
         
@@ -128,12 +124,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
         {end && (
           <Marker 
             position={[end.lat, end.lng]} 
-            icon={L.divIcon({
-              html: `<div class="marker-end-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><rect width="18" height="18" rx="2"/></svg></div>`,
-              className: '',
-              iconSize: [24, 24],
-              iconAnchor: [12, 12]
-            })}
+            icon={createMarkerIcon(`<div class="marker-end-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><rect width="18" height="18" rx="2"/></svg></div>`)}
           />
         )}
         
@@ -172,14 +163,9 @@ const MapComponent: React.FC<MapComponentProps> = ({
           <>
             <Marker
               position={[vantagePoint.position.lat, vantagePoint.position.lng]}
-              icon={L.divIcon({
-                html: `<div class="bg-tactical-lightBlue rounded-full border-2 border-white shadow-lg p-1">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                </div>`,
-                className: '',
-                iconSize: [28, 28],
-                iconAnchor: [14, 14]
-              })}
+              icon={createMarkerIcon(`<div class="bg-tactical-lightBlue rounded-full border-2 border-white shadow-lg p-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </div>`)}
             />
             
             {visibleLayers.viewshed && (
