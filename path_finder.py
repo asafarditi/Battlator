@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from scipy.ndimage import distance_transform_edt
 import os
+import random
+import copy
+from scipy.spatial.distance import cdist
 
 class PathFinderGUI:
     def __init__(self, root):
@@ -40,9 +43,17 @@ class PathFinderGUI:
         self.end_point = None
         self.start_grid_point = None
         self.end_grid_point = None
-        self.path_line = None
+        self.path_lines = []
         self.start_marker = None
         self.end_marker = None
+        
+        # Path colors
+        self.path_colors = ['blue', 'red', 'green']
+        self.path_names = ['Primary', 'Alternative 1', 'Alternative 2']
+        
+        # Path penalty parameters
+        self.path_penalty = 1000  # Large cost penalty for path cells
+        self.penalty_radius = 200  # Radius in meters for penalty area
         
         # Connect to matplotlib event handler
         self.cid = self.fig.canvas.mpl_connect('button_press_event', self.on_canvas_click)
@@ -54,12 +65,23 @@ class PathFinderGUI:
         self.clear_button = tk.Button(self.button_frame, text="Clear", command=self.clear_canvas)
         self.clear_button.pack(side=tk.LEFT, padx=5)
         
-        self.find_path_button = tk.Button(self.button_frame, text="Find Path", command=self.find_path)
+        self.find_path_button = tk.Button(self.button_frame, text="Find Paths", command=self.find_paths)
         self.find_path_button.pack(side=tk.LEFT, padx=5)
         
         # Instructions label
         self.instructions = tk.Label(root, text="Click to place start point, then end point")
         self.instructions.pack(pady=5)
+        
+        # Path information frame
+        self.path_info_frame = tk.Frame(root)
+        self.path_info_frame.pack(pady=5)
+        
+        # Path labels
+        self.path_labels = []
+        for i in range(3):
+            label = tk.Label(self.path_info_frame, text="", fg=self.path_colors[i])
+            label.pack(anchor='w')
+            self.path_labels.append(label)
 
     def load_cost_map(self):
         # Define the directory path
@@ -113,6 +135,9 @@ class PathFinderGUI:
         if mask_missing.any():
             _, (inds_y, inds_x) = distance_transform_edt(mask_missing, return_indices=True)
             self.cost[mask_missing] = self.cost[inds_y[mask_missing], inds_x[mask_missing]]
+        
+        # Store original cost map for reuse
+        self.original_cost = self.cost.copy()
 
     def on_canvas_click(self, event):
         if event.xdata is None or event.ydata is None:
@@ -137,7 +162,7 @@ class PathFinderGUI:
             self.start_grid_point = (y_idx, x_idx)  # Note: grid is (y, x) indexed
             
             # Draw start point
-            self.start_marker = self.ax.plot(grid_x, grid_y, 'go', markersize=10)[0]
+            self.start_marker = self.ax.plot(grid_x, grid_y, 'mo', markersize=10)[0]
             self.canvas.draw()
             
             self.instructions.config(text="Now click to place end point")
@@ -150,10 +175,10 @@ class PathFinderGUI:
             self.end_grid_point = (y_idx, x_idx)  # Note: grid is (y, x) indexed
             
             # Draw end point
-            self.end_marker = self.ax.plot(grid_x, grid_y, 'ro', markersize=10)[0]
+            self.end_marker = self.ax.plot(grid_x, grid_y, 'ko', markersize=10)[0]
             self.canvas.draw()
             
-            self.instructions.config(text="Click 'Find Path' to find shortest path")
+            self.instructions.config(text="Click 'Find Paths' to find multiple path options")
 
     def clear_canvas(self):
         # Remove markers if they exist
@@ -165,33 +190,44 @@ class PathFinderGUI:
             self.end_marker.remove()
             self.end_marker = None
             
-        if self.path_line is not None:
-            self.path_line.remove()
-            self.path_line = None
+        # Remove all paths
+        for path_line in self.path_lines:
+            if path_line is not None:
+                path_line.remove()
+        self.path_lines = []
             
         self.start_point = None
         self.end_point = None
         self.start_grid_point = None
         self.end_grid_point = None
         
+        # Reset cost map to original
+        self.cost = self.original_cost.copy()
+        
+        # Clear path labels
+        for label in self.path_labels:
+            label.config(text="")
+        
         self.canvas.draw()
         self.instructions.config(text="Click to place start point, then end point")
 
-    def heuristic(self, a, b):
-        # Euclidean distance heuristic
-        return math.sqrt((b[0] - a[0])**2 + (b[1] - a[1])**2)
+    def heuristic(self, a, b, weight=1.0):
+        # Euclidean distance heuristic with weight parameter
+        return weight * math.sqrt((b[0] - a[0])**2 + (b[1] - a[1])**2)
 
     def get_neighbors(self, point):
         i, j = point
         neighbors = []
-        # Check 8 directions
-        for di in [-1, 0, 1]:
-            for dj in [-1, 0, 1]:
-                if di == 0 and dj == 0:
-                    continue
-                ni, nj = i + di, j + dj
-                if 0 <= ni < self.ny and 0 <= nj < self.nx:
-                    neighbors.append((ni, nj))
+        
+        # Standard 8-direction neighbors
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1), 
+                    (-1, -1), (-1, 1), (1, -1), (1, 1)]
+        
+        for di, dj in directions:
+            ni, nj = i + di, j + dj
+            if 0 <= ni < self.ny and 0 <= nj < self.nx:
+                neighbors.append((ni, nj))
+                
         return neighbors
 
     def get_movement_cost(self, from_node, to_node):
@@ -204,15 +240,48 @@ class PathFinderGUI:
         else:
             return cost_value
 
-    def find_path(self):
-        if not self.start_point or not self.end_point:
-            messagebox.showwarning("Warning", "Please select both start and end points")
+    def apply_path_penalty(self, path_nodes):
+        """
+        Apply penalty to a path and its surrounding area
+        
+        Args:
+            path_nodes: List of (i, j) grid coordinates for the path
+        """
+        if not path_nodes:
             return
+            
+        # Convert path nodes to UTM coordinates
+        path_utm = []
+        for node in path_nodes:
+            utm_coords = (self.x_coords[node[1]], self.y_coords[node[0]])
+            path_utm.append(utm_coords)
+            
+        # Create grids of all UTM coordinates
+        y_grid, x_grid = np.meshgrid(self.y_coords, self.x_coords, indexing='ij')
+        all_points = np.column_stack((x_grid.flatten(), y_grid.flatten()))
+        
+        # Calculate distances from each grid point to the nearest path point
+        path_utm_array = np.array(path_utm)
+        distances = cdist(all_points, path_utm_array).min(axis=1)
+        distances = distances.reshape(self.cost.shape)
+        
+        # Apply penalty to points within the radius
+        penalty_mask = distances < self.penalty_radius
+        self.cost[penalty_mask] += self.path_penalty
 
+    def a_star_search(self, start, goal):
+        """
+        A* search algorithm
+        
+        Args:
+            start: Start node coordinates (i, j)
+            goal: Goal node coordinates (i, j)
+            
+        Returns:
+            Tuple of (path, cost)
+        """
         # A* algorithm implementation
         frontier = []
-        start = self.start_grid_point
-        goal = self.end_grid_point
         
         # (priority, count, node) - count is used to break ties consistently
         count = 0
@@ -226,7 +295,7 @@ class PathFinderGUI:
             if current == goal:
                 break
 
-            for next_node in self.get_neighbors(current):
+            for next_node in self.get_neighbors(current):                
                 movement_cost = self.get_movement_cost(current, next_node)
                 
                 # Skip impassable terrain (infinity cost)
@@ -244,29 +313,121 @@ class PathFinderGUI:
         # Reconstruct path
         if goal in came_from:
             current = goal
-            path = []
+            path_nodes = []
             while current is not None:
-                # Convert grid coordinates to UTM coordinates
-                utm_coords = (self.x_coords[current[1]], self.y_coords[current[0]])
-                path.append(utm_coords)
+                path_nodes.append(current)
                 current = came_from[current]
-            path.reverse()
-
-            # Draw path on plot
-            path_x = [p[0] for p in path]
-            path_y = [p[1] for p in path]
-            
-            if self.path_line is not None:
-                self.path_line.remove()
-            
-            self.path_line = self.ax.plot(path_x, path_y, 'b-', linewidth=2)[0]
-            self.canvas.draw()
+            path_nodes.reverse()
             
             # Calculate total path cost
             total_cost = cost_so_far[goal]
-            self.instructions.config(text=f"Path found! Total cost: {total_cost:.2f}")
+            
+            return path_nodes, total_cost
         else:
+            return None, float('inf')
+
+    def reconstruct_path_coordinates(self, path_nodes):
+        """Convert grid nodes to UTM coordinates for display"""
+        if not path_nodes:
+            return None
+            
+        path = []
+        for node in path_nodes:
+            # Convert grid coordinates to UTM coordinates
+            utm_coords = (self.x_coords[node[1]], self.y_coords[node[0]])
+            path.append(utm_coords)
+        
+        return path
+
+    def find_paths_with_penalty(self):
+        """
+        Find multiple paths using the path-penalty approach
+        
+        Returns:
+            List of (path_nodes, cost) tuples
+        """
+        # Make a copy of the original cost map
+        self.cost = self.original_cost.copy()
+        
+        # List to store paths
+        paths = []
+        
+        # Find first path - shortest path
+        path1, cost1 = self.a_star_search(self.start_grid_point, self.end_grid_point)
+        if path1:
+            paths.append((path1, cost1))
+            
+            # Apply penalty to first path area
+            self.apply_path_penalty(path1)
+            
+            # Find second path with updated costs
+            path2, cost2 = self.a_star_search(self.start_grid_point, self.end_grid_point)
+            if path2:
+                paths.append((path2, cost2))
+                
+                # Apply penalty to second path area
+                self.apply_path_penalty(path2)
+                
+                # Find third path with updated costs
+                path3, cost3 = self.a_star_search(self.start_grid_point, self.end_grid_point)
+                if path3:
+                    paths.append((path3, cost3))
+        
+        # Reset cost map to original
+        self.cost = self.original_cost.copy()
+        
+        return paths
+
+    def find_paths(self):
+        if not self.start_point or not self.end_point:
+            messagebox.showwarning("Warning", "Please select both start and end points")
+            return
+            
+        # Remove any existing path lines
+        for path_line in self.path_lines:
+            if path_line is not None:
+                path_line.remove()
+        self.path_lines = []
+        
+        # Find multiple paths using path penalty approach
+        paths = self.find_paths_with_penalty()
+        
+        # Check if at least one path was found
+        if not paths:
             messagebox.showinfo("No Path", "No path found between the points")
+            return
+        
+        # Draw all found paths
+        for i, (path_nodes, cost) in enumerate(paths):
+            # Convert grid nodes to UTM coordinates
+            path = self.reconstruct_path_coordinates(path_nodes)
+            
+            path_x = [p[0] for p in path]
+            path_y = [p[1] for p in path]
+            
+            line = self.ax.plot(path_x, path_y, color=self.path_colors[i], 
+                              linewidth=3-i*0.5, label=f"Path {i+1}")[0]
+            self.path_lines.append(line)
+            
+            # Calculate path cost on original cost map
+            original_cost = 0
+            for j in range(len(path_nodes) - 1):
+                from_node = path_nodes[j]
+                to_node = path_nodes[j+1]
+                move_cost = self.original_cost[to_node]
+                if from_node[0] != to_node[0] and from_node[1] != to_node[1]:
+                    move_cost *= 1.414  # Diagonal cost adjustment
+                original_cost += move_cost
+            
+            # Update path info label
+            self.path_labels[i].config(text=f"{self.path_names[i]}: Cost = {original_cost:.2f}")
+            
+        self.canvas.draw()
+        
+        # Display legend
+        self.ax.legend()
+        
+        self.instructions.config(text=f"Found {len(paths)} distinct paths!")
 
 if __name__ == "__main__":
     root = tk.Tk()
