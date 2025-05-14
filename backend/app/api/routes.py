@@ -1,5 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from app.models import Coordinates, ThreatArea, Route, Enemy, VantagePoint, RouteRequest, RouteResponse
+from app.models import Coordinates, ThreatArea, Route, Enemy, RouteRequest, RouteResponse
 from app.services.movement_service import add_new_enemy, calculate_route, start_movement, stop_movement, get_current_position
 from app.services import websocket_service
 import asyncio
@@ -21,16 +21,6 @@ async def plan_route(request: RouteRequest):
     )
     return RouteResponse(route=route)
 
-@router.get("/api/suggest-vantage", response_model=VantagePoint)
-async def suggest_vantage():
-    # Return mock vantage point
-    vp = VantagePoint(
-        id="mock-vantage",
-        position=Coordinates(lat=0.0, lng=0.0),
-        visibilityPolygon=[Coordinates(lat=0.0, lng=0.0), Coordinates(lat=0.1, lng=0.1)],
-        coverageScore=0.8
-    )
-    return vp 
 
 @router.post("/api/calculate-route")
 async def api_calculate_route(route_request: RouteRequest):
