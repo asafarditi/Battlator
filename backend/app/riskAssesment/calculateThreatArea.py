@@ -41,19 +41,15 @@ def create_threat_circle(center: Coordinates, radius: float, points: int = 32) -
         List of coordinates forming the circle
     """
     # Convert radius from meters to degrees
-    # Approximate conversion: 1 degree of latitude = 111,111 meters
-    # Note: This is a simplified conversion that works best near the equator
     radius_deg = radius / 111111.0
     
     circle_points = []
     for i in range(points):
         angle = (i / points) * 2 * math.pi
-        # Adjust longitude calculation based on latitude to account for earth's curvature
         lat = center.lat + (radius_deg * math.cos(angle))
-        # Adjust for longitude distance which varies with latitude
         lng = center.lng + (radius_deg * math.sin(angle) / math.cos(math.radians(center.lat)))
-        circle_points.append(Coordinates(lat=lat, lng=lng))
-    # Close the circle
+        # Include the alt field with a default value, e.g., 0.0
+        circle_points.append(Coordinates(lat=lat, lng=lng, alt=center.alt))
     circle_points.append(circle_points[0])
     return circle_points
 
@@ -265,7 +261,7 @@ if __name__ == "__main__":
         id="e1",
         type="infantry",
         location=[
-            Coordinates(lat=34.5553, lng=135.5553)
+            Coordinates(lat=34.5553, lng=135.5553, alt=0.0)  # Added alt field
         ],
         capability={"Assault Rifles": 500.0, "Rocket-Propelled Grenades (RPGs)": 700.0},
         risk_potential=0.0  # Initialize with a default value
@@ -281,8 +277,8 @@ if __name__ == "__main__":
             id="e1",
             type="infantry",
             location=[
-                Coordinates(lat=34.5553, lng=135.5553),
-                Coordinates(lat=34.5554, lng=135.5554)
+                Coordinates(lat=34.5553, lng=135.5553, alt=0.0),  # Added alt field
+                Coordinates(lat=34.5554, lng=135.5554, alt=0.0)   # Added alt field
             ],
             capability={"Assault Rifles": 500.0, "Rocket-Propelled Grenades (RPGs)": 700.0},
             risk_potential=0.0  # Initialize with default value
@@ -290,14 +286,14 @@ if __name__ == "__main__":
         Enemy(
             id="e2",
             type="sniper",
-            location=[Coordinates(lat=34.5560, lng=135.5560)],
+            location=[Coordinates(lat=34.5560, lng=135.5560, alt=0.0)],  # Added alt field
             capability={"Sniper Rifles": 1200.0},
             risk_potential=0.0  # Initialize with default value
         ),
         Enemy(
             id="e3",
             type="artillery",
-            location=[Coordinates(lat=34.5570, lng=135.5570)],
+            location=[Coordinates(lat=34.5570, lng=135.5570, alt=0.0)],  # Added alt field
             capability={"Mortars - Medium (81mm)": 5600.0},
             risk_potential=0.0  # Initialize with default value
         )
