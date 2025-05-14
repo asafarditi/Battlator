@@ -33,4 +33,4 @@ export type WebSocketMessage =
       };
     };
 
-export type MapMode = "VIEW" | "DRAW_THREAT" | "ROUTE";
+export type MapMode = "VIEW" | "DRAW_THREAT" | "ROUTE" | "ADD_ENEMY";

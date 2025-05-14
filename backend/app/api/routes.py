@@ -54,8 +54,16 @@ async def get_blue_force_position():
         return position
     return {"error": "No active mission"}
 
-@router.post("/api/add-enemy")
+@router.post("/api/add-threat-area")
 async def add_enemy(enemy_request: Enemy):
+    return {"success": add_new_enemy(enemy_request)}
+
+@router.post("/api/add-enemy")
+async def add_single_enemy(enemy_request: Enemy):
+    """
+    Add a single-point enemy (person, vehicle, or tank) to the map
+    """
+    # Reuse the existing add_new_enemy function
     return {"success": add_new_enemy(enemy_request)}
 
 @router.websocket("/ws/position")
@@ -65,7 +73,12 @@ async def position_websocket(websocket: WebSocket):
         while True:
             # Wait for any message from client (can be used for keep-alive)
             await websocket.receive_text()
-            await websocket.send_json({"position": get_current_position()})
+            # Get the current position and send it back
+            position = get_current_position()
+            if position:
+                await websocket.send_json({"position": position})
+            else:
+                await websocket.send_json({"error": "No active position"})
     except WebSocketDisconnect:
         await websocket_service.disconnect(websocket)
 

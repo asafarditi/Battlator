@@ -3,15 +3,36 @@ import Map, { Marker, Source, Layer } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useMapStore } from "../../store/mapStore";
 import { ThreatZone, Position, Route, MapMode } from "../../types";
-import { api } from "../../services/api";
+import { api, EnemyType } from "../../services/api";
 import { FriendlyMarker } from "./FriendlyMarker";
 import { DestinationMarker } from "./DestinationMarker";
 import { getRouteLayer, getThreatZoneLayer } from "./mapLayers";
 import { Position as MapPosition } from "geojson";
 import * as turf from "@turf/turf";
+import { User, Truck, AlertTriangle } from "lucide-react";
 
 // Mapbox API key from the requirements
 const MAPBOX_TOKEN = "pk.eyJ1IjoiYW10cnRtIiwiYSI6ImNrcWJzdG41aTBsbHEyb2sxeTdsa2FkOG4ifQ.bmaBLt4tVWrM4CVr5DLVYQ";
+
+// Tank icon component
+const TankIcon = ({ size = 24, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="2" y="12" width="20" height="8" rx="2" />
+    <rect x="6" y="8" width="12" height="4" rx="1" />
+    <line x1="2" y1="16" x2="22" y2="16" />
+    <line x1="6" y1="20" x2="6" y2="16" />
+    <line x1="10" y1="20" x2="10" y2="16" />
+    <line x1="14" y1="20" x2="14" y2="16" />
+    <line x1="18" y1="20" x2="18" y2="16" />
+  </svg>
+);
+
+// Interface for placed enemies
+interface PlacedEnemy {
+  id: string;
+  position: Position;
+  type: EnemyType;
+}
 
 const MapContainer: React.FC = () => {
   const {
@@ -22,6 +43,7 @@ const MapContainer: React.FC = () => {
     threatZones,
     drawingCoordinates,
     selectedThreatLevel,
+    selectedEnemyType,
     setSelectedDestination,
     setCurrentRoute,
     addRoute,
@@ -29,6 +51,9 @@ const MapContainer: React.FC = () => {
     updateDrawingCoordinates,
     clearDrawingCoordinates,
   } = useMapStore();
+
+  // State for placed enemies
+  const [placedEnemies, setPlacedEnemies] = useState<PlacedEnemy[]>([]);
 
   const mapRef = useRef<any>(null);
   const [viewState, setViewState] = useState({
@@ -54,6 +79,7 @@ const MapContainer: React.FC = () => {
     const clickedPosition: Position = {
       longitude: lngLat.lng,
       latitude: lngLat.lat,
+      altitude: 0,
     };
 
     if (mapMode === "ROUTE") {
@@ -72,6 +98,21 @@ const MapContainer: React.FC = () => {
       // Add point to drawing coordinates
       const newCoordinates = [...drawingCoordinates, [lngLat.lng, lngLat.lat]];
       updateDrawingCoordinates(newCoordinates);
+    } else if (mapMode === "ADD_ENEMY") {
+      // Place an enemy on the map
+      try {
+        const response = await api.addSingleEnemy(clickedPosition, selectedEnemyType);
+        if (response.success) {
+          const newEnemy: PlacedEnemy = {
+            id: `enemy-${Date.now()}`,
+            position: clickedPosition,
+            type: selectedEnemyType,
+          };
+          setPlacedEnemies((prev) => [...prev, newEnemy]);
+        }
+      } catch (error) {
+        console.error(`Error adding ${selectedEnemyType} enemy:`, error);
+      }
     }
   };
 
@@ -123,6 +164,46 @@ const MapContainer: React.FC = () => {
       type: "LineString",
       coordinates: drawingCoordinates,
     },
+  };
+
+  // Get enemy icon based on type
+  const getEnemyMarkerStyle = (type: EnemyType) => {
+    switch (type) {
+      case EnemyType.PERSON:
+        return {
+          color: "#FF5555",
+          size: 15,
+        };
+      case EnemyType.VEHICLE:
+        return {
+          color: "#FF9900",
+          size: 20,
+        };
+      case EnemyType.TANK:
+        return {
+          color: "#FF0000",
+          size: 25,
+        };
+      default:
+        return {
+          color: "#FFFFFF",
+          size: 15,
+        };
+    }
+  };
+
+  // Get the appropriate icon component based on enemy type
+  const getEnemyIcon = (type: EnemyType) => {
+    switch (type) {
+      case EnemyType.PERSON:
+        return <User size={24} color="#FF5555" />;
+      case EnemyType.VEHICLE:
+        return <Truck size={28} color="#FF9900" />;
+      case EnemyType.TANK:
+        return <TankIcon size={32} color="#FF0000" />;
+      default:
+        return <AlertTriangle size={24} color="#FFFFFF" />;
+    }
   };
 
   return (
@@ -193,6 +274,19 @@ const MapContainer: React.FC = () => {
             />
           </Source>
         )}
+
+        {/* Placed enemy markers */}
+        {placedEnemies.map((enemy) => (
+          <Marker
+            key={enemy.id}
+            longitude={enemy.position.longitude}
+            latitude={enemy.position.latitude}
+          >
+            <div className="bg-gray-900 bg-opacity-75 p-1 rounded-full border-2 border-white flex items-center justify-center">
+              {getEnemyIcon(enemy.type)}
+            </div>
+          </Marker>
+        ))}
       </Map>
 
       {/* Threat zone drawing controls */}

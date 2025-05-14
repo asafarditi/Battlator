@@ -3,9 +3,22 @@ import { useMapStore } from '../../../store/mapStore';
 import { MapMode, ThreatLevel } from '../../../types';
 import { formatCoordinates } from '../../../utils/helpers';
 import { websocketService } from '../../../services/websocket';
-import { api } from '../../../services/api';
+import { api, EnemyType } from '../../../services/api';
 import { generateId } from '../../../utils/helpers';
-import { Map, RouteIcon, ShieldAlert, ShieldCheck, PlayCircle, PauseCircle, Navigation, AlertTriangle } from 'lucide-react';
+import { Map, RouteIcon, ShieldAlert, ShieldCheck, PlayCircle, PauseCircle, Navigation, AlertTriangle, Users, Truck } from 'lucide-react';
+
+// Add TankIcon if not available in lucide-react
+const TankIcon = ({ size = 24, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="2" y="12" width="20" height="8" rx="2" />
+    <rect x="6" y="8" width="12" height="4" rx="1" />
+    <line x1="2" y1="16" x2="22" y2="16" />
+    <line x1="6" y1="20" x2="6" y2="16" />
+    <line x1="10" y1="20" x2="10" y2="16" />
+    <line x1="14" y1="20" x2="14" y2="16" />
+    <line x1="18" y1="20" x2="18" y2="16" />
+  </svg>
+);
 
 const ControlPanel: React.FC = () => {
   const {
@@ -18,6 +31,8 @@ const ControlPanel: React.FC = () => {
     currentRoute,
     startMission,
     endMission,
+    selectedEnemyType,
+    setSelectedEnemyType,
   } = useMapStore();
 
   // Start the mission
@@ -77,7 +92,7 @@ const ControlPanel: React.FC = () => {
       {/* Mode buttons */}
       <div className="mb-4">
         <p className="text-gray-400 mb-2">MAP MODE:</p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           <button
             onClick={() => setMapMode("VIEW")}
             className={`p-2 rounded-md flex flex-col items-center justify-center text-xs ${
@@ -104,6 +119,15 @@ const ControlPanel: React.FC = () => {
           >
             <AlertTriangle size={20} className="mb-1" />
             Threat
+          </button>
+          <button
+            onClick={() => setMapMode("ADD_ENEMY")}
+            className={`p-2 rounded-md flex flex-col items-center justify-center text-xs ${
+              mapMode === "ADD_ENEMY" ? "bg-blue-700" : "bg-gray-700 hover:bg-gray-600"
+            }`}
+          >
+            <Users size={20} className="mb-1" />
+            Enemy
           </button>
         </div>
       </div>
@@ -145,6 +169,52 @@ const ControlPanel: React.FC = () => {
         </div>
       )}
       
+      {/* Enemy type selector (only visible in ADD_ENEMY mode) */}
+      {mapMode === "ADD_ENEMY" && (
+        <div className="mb-4">
+          <p className="text-gray-400 mb-2">ENEMY TYPE:</p>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => setSelectedEnemyType(EnemyType.PERSON)}
+              className={`p-2 rounded-md flex flex-col items-center justify-center text-xs ${
+                selectedEnemyType === EnemyType.PERSON
+                  ? "bg-blue-700"
+                  : "bg-gray-700 hover:bg-gray-600"
+              }`}
+            >
+              <Users size={20} className="mb-1" />
+              Person
+            </button>
+            <button
+              onClick={() => setSelectedEnemyType(EnemyType.VEHICLE)}
+              className={`p-2 rounded-md flex flex-col items-center justify-center text-xs ${
+                selectedEnemyType === EnemyType.VEHICLE
+                  ? "bg-blue-700"
+                  : "bg-gray-700 hover:bg-gray-600"
+              }`}
+            >
+              <Truck size={20} className="mb-1" />
+              Vehicle
+            </button>
+            <button
+              onClick={() => setSelectedEnemyType(EnemyType.TANK)}
+              className={`p-2 rounded-md flex flex-col items-center justify-center text-xs ${
+                selectedEnemyType === EnemyType.TANK
+                  ? "bg-blue-700"
+                  : "bg-gray-700 hover:bg-gray-600"
+              }`}
+            >
+              <TankIcon size={20} className="mb-1" />
+              Tank
+            </button>
+          </div>
+          
+          <div className="mt-2 text-xs text-gray-400">
+            <p>Select an enemy type and click on the map to place it.</p>
+          </div>
+        </div>
+      )}
+      
       {/* Mission control */}
       <div className="mt-4">
         <p className="text-gray-400 mb-2">MISSION CONTROL:</p>
@@ -181,6 +251,7 @@ const ControlPanel: React.FC = () => {
           <li>VIEW: Pan and zoom the map</li>
           <li>ROUTE: Click destination to plan route</li>
           <li>THREAT: Draw threat zones on the map</li>
+          <li>ENEMY: Place single enemies on the map</li>
         </ul>
       </div>
     </div>

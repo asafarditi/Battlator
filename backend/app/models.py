@@ -3,9 +3,12 @@ from typing import List, Optional, Literal, Dict
 from enum import Enum
 
 
-class EnemyType(int, Enum):
-    SNIPER = 0
-    LAUNCHER = 1
+class EnemyType(str, Enum):
+    PERSON = "person"
+    VEHICLE = "vehicle"
+    TANK = "tank"
+    SNIPER = "sniper"
+    LAUNCHER = "launcher"
 
 class RiskLevel(str, Enum):
     HIGH = "HIGH"
@@ -19,7 +22,7 @@ class Coordinates(BaseModel):
 
 class Enemy(BaseModel):
     id: str
-    type: str
+    type: EnemyType
     location: List[Coordinates]
     capability: Dict[str, float]
     risk_potential: float

@@ -2,11 +2,11 @@ import { WebSocketMessage, Position } from '../types';
 import { useMapStore } from '../store/mapStore';
 
 let websocket: WebSocket | null = null;
-let mockUpdateInterval: number | null = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 /**
- * Mock WebSocket service that simulates position updates
- * TODO: Replace with actual WebSocket connection when backend is available
+ * WebSocket service that connects to the backend position updates
  */
 export const websocketService = {
   /**
@@ -20,57 +20,64 @@ export const websocketService = {
     
     console.log('Connecting to WebSocket...');
     
-    // In a real app, you would connect to a real WebSocket endpoint
-    // For now, we'll simulate it with a timer
+    // Connect to the actual backend WebSocket endpoint
+    websocket = new WebSocket('ws://localhost:8000/ws/position');
     
-    // Start the mock update interval
-    mockUpdateInterval = window.setInterval(() => {
-      // Get current position from store
-      const currentPosition = useMapStore.getState().currentPosition;
-      
-      // Simulate small position changes (random movement)
-      const newPosition: Position = {
-        latitude: currentPosition.latitude + (Math.random() - 0.5) * 0.001,
-        longitude: currentPosition.longitude + (Math.random() - 0.5) * 0.001
-      };
-      
-      // Simulate a WebSocket message
-      const message: WebSocketMessage = {
-        type: 'position',
-        data: newPosition
-      };
-      
-      // Handle the message as if it came from a real WebSocket
-      websocketService.handleMessage(message);
-    }, 2000); // Update every 2 seconds
+    websocket.onopen = () => {
+      console.log('WebSocket connection established');
+      reconnectAttempts = 0;
+    };
     
-    // Occasionally send an alert message
-    window.setInterval(() => {
-      // 10% chance of sending an alert
-      if (Math.random() < 0.1) {
-        const alertTypes = ['info', 'warning', 'danger'] as const;
-        const alertType = alertTypes[Math.floor(Math.random() * alertTypes.length)];
-        
-        const alertMessages = {
-          info: ['Friendly forces nearby', 'Supply drop inbound', 'Weather conditions stable'],
-          warning: ['Unknown contact detected', 'Communication interference', 'Weather alert'],
-          danger: ['Hostile forces detected', 'Immediate extraction required', 'Critical system failure']
-        };
-        
-        const messages = alertMessages[alertType];
-        const message = messages[Math.floor(Math.random() * messages.length)];
-        
-        const alertMessage: WebSocketMessage = {
-          type: 'alert',
-          data: {
-            message,
-            level: alertType
-          }
-        };
-        
-        websocketService.handleMessage(alertMessage);
+    websocket.onclose = (event) => {
+      console.log('WebSocket connection closed', event);
+      websocket = null;
+      
+      // Attempt to reconnect if the connection was closed unexpectedly
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        reconnectAttempts++;
+        console.log(`Reconnecting (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+        setTimeout(() => websocketService.connect(), 2000);
       }
-    }, 10000); // Check every 10 seconds
+    };
+    
+    websocket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+    
+    websocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        // Check if this is a position update
+        if (data.position) {
+          const position: Position = {
+            latitude: data.position.lat,
+            longitude: data.position.lng,
+            altitude: data.position.alt || 0
+          };
+          
+          const message: WebSocketMessage = {
+            type: 'position',
+            data: position
+          };
+          
+          websocketService.handleMessage(message);
+        }
+        
+        // You can add handling for other message types here
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+    
+    // Send a message every few seconds to keep the connection alive
+    const keepAliveInterval = window.setInterval(() => {
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.send('keepalive');
+      } else if (!websocket) {
+        window.clearInterval(keepAliveInterval);
+      }
+    }, 30000);
   },
   
   /**
@@ -78,11 +85,6 @@ export const websocketService = {
    */
   disconnect: () => {
     console.log('Disconnecting from WebSocket...');
-    
-    if (mockUpdateInterval) {
-      window.clearInterval(mockUpdateInterval);
-      mockUpdateInterval = null;
-    }
     
     if (websocket) {
       websocket.close();
@@ -115,6 +117,6 @@ export const websocketService = {
    * Checks if the WebSocket is connected
    */
   isConnected: () => {
-    return mockUpdateInterval !== null;
+    return websocket !== null && websocket.readyState === WebSocket.OPEN;
   }
 };
