@@ -20,4 +20,4 @@ app.include_router(api_router)
 @app.on_event("startup")
 async def startup_event():
     # Start the websocket broadcast loop
-    #asyncio.create_task(websocket_service.position_broadcast_loop()) 
+    asyncio.create_task(websocket_service.position_broadcast_loop()) 
