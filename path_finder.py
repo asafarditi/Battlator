@@ -715,12 +715,68 @@ class PathFinderGUI:
             if risk_points:
                 self.display_risk_points(i, risk_points)
             
+            # Display risk points if any
+            if risk_points:
+                self.display_risk_points(i, risk_points)
+            
         self.canvas.draw()
         
         # Display legend
         self.ax.legend()
         
         self.instructions.config(text=f"Found {len(paths)} distinct paths!")
+        
+    def display_risk_points(self, path_index, risk_points):
+        """
+        Display information about risk points for a specific path
+        
+        Args:
+            path_index: Index of the path
+            risk_points: List of ((x, y), risk_type) tuples
+        """
+        if not risk_points:
+            return
+            
+        # Create risk point window
+        risk_window = tk.Toplevel(self.root)
+        risk_window.title(f"Risk Points - {self.path_names[path_index]}")
+        risk_window.geometry("500x300")
+        
+        # Header
+        tk.Label(risk_window, text=f"Risk Points for {self.path_names[path_index]}",
+                font=("Arial", 12, "bold")).pack(pady=10)
+        
+        # Create frame for the risk points list
+        list_frame = tk.Frame(risk_window)
+        list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        # Scrollbar
+        scrollbar = tk.Scrollbar(list_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Create listbox
+        risk_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, font=("Courier", 10))
+        risk_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=risk_listbox.yview)
+        
+        # Add header
+        risk_listbox.insert(tk.END, f"{'Point X':^15} {'Point Y':^15} {'Risk Type':^15}")
+        risk_listbox.insert(tk.END, "-" * 45)
+        
+        # Add risk points
+        for (x, y), risk_type in risk_points:
+            risk_listbox.insert(tk.END, f"{x:15.2f} {y:15.2f} {risk_type:15}")
+            
+        # Add summary
+        tk.Label(risk_window, text=f"Total Risk Points: {len(risk_points)}",
+                font=("Arial", 10, "bold")).pack(pady=5)
+                
+        # Highlight risk points on the map
+        for (x, y), risk_type in risk_points:
+            color = 'red' if risk_type == "High Risk" else 'orange'
+            marker = self.ax.plot(x, y, 'o', color=color, markersize=8, 
+                                alpha=0.7, zorder=4)[0]
+            self.path_lines.append(marker)  # Add to path_lines for cleanup later
 
     def init_polygon_cost_map(self):
         """Initialize the polygon cost map with zeros"""
