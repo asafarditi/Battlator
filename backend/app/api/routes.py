@@ -1,6 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from app.models import Coordinates, ThreatArea, Route, VantagePoint, RouteRequest, RouteResponse
-from app.services.movement_service import calculate_route, start_movement, stop_movement, get_current_position
+from app.models import Coordinates, ThreatArea, Route, Enemy, VantagePoint, RouteRequest, RouteResponse
+from app.services.movement_service import add_new_enemy, calculate_route, start_movement, stop_movement, get_current_position
 from app.services import websocket_service
 import asyncio
 
@@ -61,6 +61,10 @@ async def get_blue_force_position():
     if position:
         return position
     return {"error": "No active mission"}
+
+@router.post("/api/add-enemy")
+async def add_enemy(enemy_request: Enemy):
+    return {"success": add_new_enemy(enemy_request)}
 
 @router.websocket("/ws/position")
 async def position_websocket(websocket: WebSocket):

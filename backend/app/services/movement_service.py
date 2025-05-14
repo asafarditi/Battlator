@@ -1,13 +1,15 @@
 import asyncio
 import time
 import math
-from app.models import Coordinates
+from app.models import Coordinates, Enemy, ENEMY_CAPABILITIES
+from backend.app.services import websocket_service
 
 # Global state to track current position and route
 current_position = None
 is_moving = False
 route_waypoints = []
 route_segments = []  # Will store pre-calculated segments for movement
+enemies = []  # List of enemies
 
 def calculate_distance(point1: Coordinates, point2: Coordinates) -> float:
     """Calculate distance between two coordinates in kilometers (haversine formula)"""
@@ -117,3 +119,20 @@ def stop_movement():
 def get_current_position() -> Coordinates:
     """Return the current position of the blue force"""
     return current_position 
+
+def add_new_enemy(new_enemy: Enemy):
+    """Add a new enemy to the route"""
+    global enemies
+    if new_enemy.enemyType in ENEMY_CAPABILITIES:
+        new_enemy.enemyInfo = ENEMY_CAPABILITIES[new_enemy.enemyType]
+
+    enemies.append(new_enemy)
+
+    stop_movement()
+    # Send to algo the new_enemy and get new routes
+    # updated_routes = add_new_enemy_to_route(new_enemy)
+    #websocket_service.broadcast({"updated_routes": updated_routes}) 
+    return True 
+    
+        
+        
