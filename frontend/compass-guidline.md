@@ -8,7 +8,7 @@ This document serves as a living checklist and guideline for developing the Tact
 
 - [x] Ensure all dependencies are installed (`npm install`)
 - [x] Verify development server runs (`npm run dev`)
-- [x] Confirm map loads and basic UI renders
+- [x] Confirm map loads and basic UI rendersבג
 - [x] Create unified root .gitignore for frontend (React/TypeScript) and backend (Python/FastAPI)
 
 ---
