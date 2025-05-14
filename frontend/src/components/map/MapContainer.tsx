@@ -95,6 +95,19 @@ const MapContainer: React.FC = () => {
       // Add the threat zone to the store
       addThreatZone([closedCoordinates], selectedThreatLevel);
 
+      // Send add-enemy request to backend
+      const enemyId = `enemy-${Date.now()}`;
+      const enemyType = selectedThreatLevel === "highThreat" ? "LAUNCHER" : "SNIPER";
+      const riskPotential = selectedThreatLevel === "highThreat" ? 1.0 : 0.5;
+      const enemy = {
+        id: enemyId,
+        type: enemyType,
+        location: closedCoordinates.map(([lng, lat]) => ({ lat, lng, alt: 0.0 })),
+        capability: { range: 1000 },
+        risk_potential: riskPotential,
+      };
+      await api.addEnemy(enemy);
+
       // Clear drawing coordinates
       clearDrawingCoordinates();
     } catch (error) {

@@ -82,4 +82,27 @@ export const api = {
 
     return { status: "ok" };
   },
+
+  /**
+   * Adds an enemy (threat zone) to the backend
+   */
+  addEnemy: async (enemy: {
+    id: string;
+    type: string;
+    location: { lat: number; lng: number; alt?: number }[];
+    capability: { [key: string]: number };
+    risk_potential: number;
+  }): Promise<{ success: boolean }> => {
+    const response = await fetch(`${api_path}/api/add-enemy`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(enemy),
+    });
+    if (!response.ok) {
+      throw new Error("Failed to add enemy");
+    }
+    return response.json();
+  },
 };
