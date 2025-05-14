@@ -15,7 +15,10 @@ async def plan_route(request: RouteRequest):
     # Return mock route
     route = Route(
         id="mock-route",
-        path=[request.start, request.end],
+        path=[
+            Coordinates(lat=request.start.lat, lng=request.start.lng, alt=1.1),
+            Coordinates(lat=request.end.lat, lng=request.end.lng, alt=1.1)
+        ],
         distance=1234.5,
         riskScore=0.2
     )

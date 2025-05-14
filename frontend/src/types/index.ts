@@ -1,6 +1,7 @@
 export type Position = {
   latitude: number;
   longitude: number;
+  altitude: number;
 };
 
 export type Route = {
@@ -10,7 +11,7 @@ export type Route = {
 
 export enum ThreatLevel {
   MEDIUM = "medThreat",
-  HIGH = "highThreat"
+  HIGH = "highThreat",
 }
 
 export type ThreatZone = {
@@ -19,15 +20,17 @@ export type ThreatZone = {
   level: ThreatLevel;
 };
 
-export type WebSocketMessage = {
-  type: "position";
-  data: Position;
-} | {
-  type: "alert";
-  data: {
-    message: string;
-    level: "info" | "warning" | "danger";
-  };
-};
+export type WebSocketMessage =
+  | {
+      type: "position";
+      data: Position;
+    }
+  | {
+      type: "alert";
+      data: {
+        message: string;
+        level: "info" | "warning" | "danger";
+      };
+    };
 
 export type MapMode = "VIEW" | "DRAW_THREAT" | "ROUTE";

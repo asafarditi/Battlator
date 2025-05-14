@@ -9,7 +9,8 @@ from app.models import Enemy, Coordinates, ThreatArea
 from app.riskAssesment.calculateThreatArea import (
     analyze_threat_areas,
     calculate_threat_radius,
-    calculate_effective_range
+    calculate_effective_range,
+    WEIGHTS  # Add this import
 )
 import webbrowser
 import os
@@ -57,7 +58,7 @@ def plot_threat_areas_on_map(threat_areas: List[ThreatArea]):
     }
     
     # Plot each threat area
-    for area in  :
+    for area in threat_areas:
         # Create polygon coordinates
         polygon_coords = [[point.lat, point.lng] for point in area.polygon]
         
@@ -179,8 +180,8 @@ if __name__ == "__main__":
             id="e1",
             type="infantry",
             location=[
-                Coordinates(lat=34.5553, lng=135.5553),
-                Coordinates(lat=34.5554, lng=135.5554)
+                Coordinates(lat=34.5553, lng=135.5553, alt=0.0),
+                Coordinates(lat=34.5554, lng=135.5554, alt=0.0)
             ],
             capability={"Assault Rifles": 500.0, "Rocket-Propelled Grenades (RPGs)": 700.0},
             # Calculation for high risk:
@@ -194,7 +195,7 @@ if __name__ == "__main__":
         Enemy(
             id="e2",
             type="sniper",
-            location=[Coordinates(lat=34.5660, lng=135.5660)],
+            location=[Coordinates(lat=34.5660, lng=135.5660, alt=0.0)],
             capability={"Sniper Rifles": 1200.0},
             # Calculation for high risk:
             # Base sniper risk: 70
@@ -207,7 +208,7 @@ if __name__ == "__main__":
         Enemy(
             id="e3",
             type="artillery",
-            location=[Coordinates(lat=34.6570, lng=135.6570)],
+            location=[Coordinates(lat=34.6570, lng=135.6570, alt=0.0)],
             capability={"Mortars - Medium (81mm)": 5600.0},
             # Calculation for high risk:
             # Base artillery risk: 85
@@ -221,13 +222,13 @@ if __name__ == "__main__":
             id="e5",
             type="infantry",
             location=[
-                Coordinates(lat=34.8553, lng=135.3553)
+                Coordinates(lat=34.8553, lng=135.3553, alt=0.0)
             ],
             # Capability range chosen to generate medium risk (300-699 score)
             # With infantry base risk (50) and range of 400m:
             # Score = 1 * 1.0 + 400 * 0.9 + (50 * (1 + 400/1000)) * 1.0 ≈ 471
             capability={"Assault Rifles": 400.0},
-            risk_potential=70.0  # 50 * (1 + 400/1000)
+            risk_potential=70.0
         )
     ]
     
