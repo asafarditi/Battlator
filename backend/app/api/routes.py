@@ -17,7 +17,6 @@ async def plan_route(request: RouteRequest):
         id="mock-route",
         path=[request.start, request.end],
         distance=1234.5,
-        elevation=56.7,
         riskScore=0.2
     )
     return RouteResponse(route=route)
