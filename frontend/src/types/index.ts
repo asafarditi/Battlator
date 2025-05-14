@@ -1,77 +1,36 @@
+export type Position = {
+  latitude: number;
+  longitude: number;
+  altitude: number;
+};
 
-export interface Coordinates {
-  lat: number;
-  lng: number;
-}
-
-export interface Route {
+export type Route = {
   id: string;
-  path: Coordinates[];
-  distance: number;
-  elevation: number;
-  riskScore: number;
+  points: Position[];
+};
+
+export enum ThreatLevel {
+  MEDIUM = "medThreat",
+  HIGH = "highThreat",
 }
 
-export interface ThreatArea {
+export type ThreatZone = {
   id: string;
-  polygon: Coordinates[];
-  riskLevel: 'high' | 'medium' | 'low';
-  description?: string;
-}
+  coordinates: number[][][]; // GeoJSON Polygon coordinates
+  level: ThreatLevel;
+};
 
-export interface VantagePoint {
-  id: string;
-  position: Coordinates;
-  visibilityPolygon: Coordinates[];
-  coverageScore: number;
-}
+export type WebSocketMessage =
+  | {
+      type: "position";
+      data: Position;
+    }
+  | {
+      type: "alert";
+      data: {
+        message: string;
+        level: "info" | "warning" | "danger";
+      };
+    };
 
-export interface RouteRequest {
-  start: Coordinates;
-  end: Coordinates;
-  threatAreas: ThreatArea[];
-}
-
-export interface RouteResponse {
-  route: Route;
-  alternativeRoutes?: Route[];
-}
-
-export interface MapViewport {
-  center: Coordinates;
-  zoom: number;
-}
-
-export interface MapControlsProps {
-  onAddThreatArea: () => void;
-  onRemoveThreatArea: (id: string) => void;
-  onClearMap: () => void;
-  onCalculateRoute: () => void;
-  onFindVantage: () => void;
-  isCalculatingRoute: boolean;
-  isFindingVantage: boolean;
-  threatAreas: ThreatArea[];
-}
-
-export type MapMode = 'view' | 'placeStart' | 'placeEnd' | 'drawThreat';
-
-export interface MapLayerToggleProps {
-  layers: {
-    id: string;
-    label: string;
-    isActive: boolean;
-  }[];
-  onToggleLayer: (id: string) => void;
-}
-
-export interface RouteInfoProps {
-  route: Route | null;
-  vantagePoint: VantagePoint | null;
-  isLoading: boolean;
-}
-
-export interface MapMarkerProps {
-  position: Coordinates;
-  type: 'start' | 'end' | 'vantage';
-  icon?: string;
-}
+export type MapMode = "VIEW" | "DRAW_THREAT" | "ROUTE";

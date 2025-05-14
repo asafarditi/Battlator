@@ -1,6 +1,65 @@
-# Battlator Backend (FastAPI)
+# Battlator Backend
 
-This is the backend service for the Battlator Tactical Route Planner, implemented with Python and FastAPI. It provides API endpoints for route planning, threat zone analysis, and vantage point suggestions.
+A FastAPI backend service for military route planning and threat zone analysis.
+
+## Goals
+
+- Provide endpoints for route planning and threat zone avoidance
+- Implement efficient algorithms for path finding and risk assessment
+- Support real-time updates and notifications
+
+## Current Status
+
+- Basic FastAPI setup with health check endpoint
+- Route planning endpoints (mock data)
+- Basic error handling and logging
+
+## Project Structure
+
+```
+backend/
+  ├── app/
+  │   ├── api/
+  │   │   └── routes.py     # All API endpoints (health, plan-route)
+  │   ├── models.py         # Pydantic models
+  │   └── main.py          # FastAPI app setup
+  ├── tests/
+  └── requirements.txt
+```
+
+## API Endpoints
+
+- `GET /health` — Health check endpoint
+- `POST /api/plan-route` — Plan optimal route (returns mock route)
+
+## Development
+
+1. Create virtual environment:
+
+```bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+```
+
+2. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+3. Run development server:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+## Testing
+
+Run tests with pytest:
+
+```bash
+pytest
+```
 
 ## Purpose
 
