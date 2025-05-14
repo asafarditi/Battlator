@@ -60,6 +60,24 @@ export const api = {
   },
 
   /**
+   * Starts a mission with the given route
+   */
+  startMission: async (routeId: string): Promise<{ status: string }> => {
+    const response = await fetch(`${api_path}/api/start-mission`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ routeId: routeId }),
+    });
+    if (!response.ok) {
+      throw new Error("Failed to start mission");
+    }
+
+    return response.json();
+  },
+
+  /**
    * Submits a threat zone to the backend
    */
   submitThreatZone: async (coordinates: number[][][], level: ThreatLevel): Promise<{ status: string }> => {
@@ -72,25 +90,21 @@ export const api = {
   },
 
   /**
-   * Starts a mission with the given route
-   */
-  startMission: async (routeId: string): Promise<{ status: string }> => {
-    await simulateNetworkDelay();
-
-    console.log("Starting mission with route:", routeId);
-
-    return { status: "ok" };
-  },
-
-  /**
    * Ends the current mission
    */
-  endMission: async (): Promise<{ status: string }> => {
-    await simulateNetworkDelay();
+  endMission: async (): Promise<{ success: boolean }> => {
+    const response = await fetch(`${api_path}/api/stop-mission`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+    if (!response.ok) {
+      throw new Error("Failed to stop mission");
+    }
 
-    console.log("Ending mission");
-
-    return { status: "ok" };
+    return response.json();
   },
 
   /**

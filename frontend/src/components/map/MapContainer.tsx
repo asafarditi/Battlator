@@ -75,17 +75,6 @@ const MapContainer: React.FC = () => {
     zoom: 12,
   });
 
-  // Update view state when current position changes
-  useEffect(() => {
-    if (currentPosition) {
-      setViewState((prev) => ({
-        ...prev,
-        longitude: currentPosition.longitude,
-        latitude: currentPosition.latitude,
-      }));
-    }
-  }, [currentPosition]);
-
   // Handle map click events
   const handleMapClick = async (event: any) => {
     const { lngLat } = event;

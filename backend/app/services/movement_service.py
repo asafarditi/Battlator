@@ -1,7 +1,7 @@
 import asyncio
 import time
 import math
-from app.models import Coordinates, Enemy
+from app.models import Coordinates, Enemy, Route
 
 # Global state to track current position and route
 current_position = None
@@ -9,12 +9,15 @@ is_moving = False
 route_waypoints = []
 route_segments = []  # Will store pre-calculated segments for movement
 enemies = []  # List of enemies
+routes = []
 
 def calculate_distance(point1: Coordinates, point2: Coordinates) -> float:
     """Calculate distance between two coordinates in kilometers (haversine formula)"""
     R = 6371  # Earth radius in km
-    lat1, lon1 = math.radians(point1.lat), math.radians(point1.lng)
-    lat2, lon2 = math.radians(point2.lat), math.radians(point2.lng)
+    print(point1)
+    print(point2)
+    lat1, lon1 = math.radians(point1[0]), math.radians(point1[1])
+    lat2, lon2 = math.radians(point2[0]), math.radians(point2[1])
     
     dlat = lat2 - lat1
     dlon = lon2 - lon1
@@ -26,8 +29,8 @@ def calculate_distance(point1: Coordinates, point2: Coordinates) -> float:
 def interpolate_position(start: Coordinates, end: Coordinates, fraction: float) -> Coordinates:
     """Interpolate between two points by a fraction (0-1)"""
     return Coordinates(
-        lat=start.lat + (end.lat - start.lat) * fraction,
-        lng=start.lng + (end.lng - start.lng) * fraction
+        lat=start[0] + (end[0] - start[0]) * fraction,
+        lng=start[1] + (end[1] - start[1]) * fraction
     )
 
 def calculate_route(route_path: list[Coordinates]):
@@ -74,9 +77,12 @@ def calculate_route(route_path: list[Coordinates]):
     print(f"Route calculated with {len(route_segments)} segments")
     return True
 
-async def start_movement():
+async def start_movement(route: Route):
     """Start moving along the pre-calculated route"""
     global current_position, is_moving
+    # Extract coordinates from route path
+    coords = [[p.coordinates.lat, p.coordinates.lng] for p in route.path]
+    calculate_route(coords)
     
     if not route_segments:
         print("No route calculated")
@@ -87,8 +93,8 @@ async def start_movement():
         return False
     
     is_moving = True
-    current_position = route_waypoints[0]
-    
+    if(current_position is None):
+        current_position = route_waypoints[0]
     try:
         # Move through each segment of the route
         for segment in route_segments:
@@ -96,7 +102,7 @@ async def start_movement():
             for position in segment["positions"]:
                 if not is_moving:  # Check if movement was stopped
                     return False
-                
+
                 current_position = position
                 print(f"Current position: {current_position}")
                 await asyncio.sleep(1)

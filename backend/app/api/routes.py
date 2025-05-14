@@ -4,9 +4,14 @@ from app.services.movement_service import add_new_enemy, calculate_route, start_
 from app.services import websocket_service
 import asyncio
 from app.services.path_finder_service import PathFinderService
+from pydantic import BaseModel
 
 router = APIRouter()
 pathfinder = PathFinderService()
+routes: list[Route] = []
+
+class StartMissionRequest(BaseModel):
+    routeId: str
 
 @router.get("/health")
 async def health_check():
@@ -20,7 +25,7 @@ async def plan_route(request: RouteRequest):
     path_points = pathfinder.find_paths(start, end)
     print(len(path_points))
     
-    routes = []
+    new_routes = []
     for i, path in enumerate(path_points):
         path_coords = [PathPoint(coordinates=Coordinates(lat=pt[1], lng=pt[0], alt=1.1), threatScore=0.0) for pt in path]
         route = Route(
@@ -29,7 +34,10 @@ async def plan_route(request: RouteRequest):
             distance=0.0,  # Optionally calculate distance
             riskScore=0.0  # Optionally calculate risk
         )
-        routes.append(route)
+        new_routes.append(route)
+
+    global routes
+    routes = new_routes
     return RouteResponse(routes=routes)
 
 
@@ -46,10 +54,14 @@ async def api_calculate_route(route_request: RouteRequest):
     return {"success": success}
 
 @router.post("/api/start-mission")
-async def start_mission():
+async def start_mission(request: StartMissionRequest):
     # Start the movement in the background
-    asyncio.create_task(start_movement())
-    return True
+    print(f"Starting mission with route {request.routeId}")
+    selected_route = next((route for route in routes if route.id == request.routeId), None)
+    if not selected_route:
+        return {"error": "Route not found"}
+    asyncio.create_task(start_movement(selected_route))
+    return {"success": True}
 
 @router.post("/api/stop-mission")
 async def stop_mission():
@@ -81,6 +93,8 @@ async def position_websocket(websocket: WebSocket):
         while True:
             # Wait for any message from client (can be used for keep-alive)
             await websocket.receive_text()
+            print("Waiting for message")
+
             # Get the current position and send it back
             position = get_current_position()
             if position:

@@ -5,6 +5,7 @@ import pandas as pd
 import os
 from scipy.ndimage import distance_transform_edt
 from pyproj import Proj, Transformer
+from shapely.geometry import LineString
 
 class PathFinderService:
     def __init__(self, csv_path=None):
@@ -17,7 +18,7 @@ class PathFinderService:
         # Always load from the src directory at the project root
         if csv_path is None:
             project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../'))
-            csv_file = os.path.join(project_root, 'src', 'downscaled_dem_50m.csv')
+            csv_file = os.path.join(project_root, 'src', 'downscaled_dem_10m.csv')
         else:
             csv_file = csv_path
         if not os.path.exists(csv_file):
@@ -45,6 +46,57 @@ class PathFinderService:
         if mask_missing.any():
             _, (inds_y, inds_x) = distance_transform_edt(mask_missing, return_indices=True)
             self.cost[mask_missing] = self.cost[inds_y[mask_missing], inds_x[mask_missing]]
+        # Apply road cost reduction
+        self.apply_road_cost_reduction()
+
+    def apply_road_cost_reduction(self):
+        """
+        Load roads from CSV file and reduce the cost of cells containing roads by 15
+        """
+        try:
+            # Find the roads CSV file
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../'))
+            roads_file = os.path.join(project_root, 'src', 'clipped_roads_utm.csv')
+            if not os.path.exists(roads_file):
+                print("Roads file not found, skipping road cost reduction.")
+                return
+            roads_df = pd.read_csv(roads_file)
+            road_mask = np.zeros_like(self.cost, dtype=bool)
+            for _, road in roads_df.iterrows():
+                if 'geometry' not in road:
+                    continue
+                linestring_str = road['geometry']
+                if isinstance(linestring_str, str) and linestring_str.startswith('LINESTRING'):
+                    coords_str = linestring_str.strip('LINESTRING ()').split(',')
+                    coords = []
+                    for coord_str in coords_str:
+                        try:
+                            x, y = map(float, coord_str.strip().split())
+                            coords.append((x, y))
+                        except ValueError:
+                            continue
+                    points = self.interpolate_line(coords)
+                    for x, y in points:
+                        x_idx = np.abs(self.x_coords - x).argmin()
+                        y_idx = np.abs(self.y_coords - y).argmin()
+                        if 0 <= y_idx < self.ny and 0 <= x_idx < self.nx:
+                            road_mask[y_idx, x_idx] = True
+            road_cost_reduction = 15
+            self.cost[road_mask] = np.maximum(0, self.cost[road_mask] - road_cost_reduction)
+            print(f"Roads loaded successfully: found {np.sum(road_mask)} road cells")
+        except Exception as e:
+            print(f"Error processing roads file: {str(e)}")
+
+    def interpolate_line(self, coords, spacing=10):
+        """
+        Interpolate points along a line with specified spacing
+        """
+        if len(coords) < 2:
+            return coords
+        line = LineString(coords)
+        distances = np.arange(0, line.length, spacing)
+        points = [line.interpolate(distance) for distance in distances]
+        return [(point.x, point.y) for point in points]
 
     def heuristic(self, a, b):
         return math.sqrt((b[0] - a[0])**2 + (b[1] - a[1])**2)
@@ -104,7 +156,6 @@ class PathFinderService:
             paths.append(path)
             # Apply penalty to path area
             self._apply_path_penalty(path_nodes, penalty, penalty_radius)
-            print(self.cost)
         # Restore original cost map
         self.cost = original_cost
         
