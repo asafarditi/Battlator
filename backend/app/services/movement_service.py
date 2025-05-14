@@ -1,8 +1,7 @@
 import asyncio
 import time
 import math
-from app.models import Coordinates, Enemy, ENEMY_CAPABILITIES
-from backend.app.services import websocket_service
+from app.models import Coordinates, Enemy
 
 # Global state to track current position and route
 current_position = None
@@ -123,8 +122,6 @@ def get_current_position() -> Coordinates:
 def add_new_enemy(new_enemy: Enemy):
     """Add a new enemy to the route"""
     global enemies
-    if new_enemy.enemyType in ENEMY_CAPABILITIES:
-        new_enemy.enemyInfo = ENEMY_CAPABILITIES[new_enemy.enemyType]
 
     enemies.append(new_enemy)
 
