@@ -66,6 +66,7 @@ async def get_blue_force_position():
 async def add_enemy(enemy_request: Enemy):
     return {"success": add_new_enemy(enemy_request)}
 
+@router.websocket("/ws")
 @router.websocket("/ws/position")
 async def position_websocket(websocket: WebSocket):
     await websocket_service.connect(websocket)
@@ -73,7 +74,19 @@ async def position_websocket(websocket: WebSocket):
         while True:
             # Wait for any message from client (can be used for keep-alive)
             await websocket.receive_text()
-            await websocket.send_json({"position": get_current_position()})
+            
+            # Get current position and send it
+            position = get_current_position()
+            if position:
+                await websocket.send_json({"position": {
+                    "lat": position.lat,
+                    "lng": position.lng
+                }})
+            else:
+                await websocket.send_json({"status": "no_position"})
     except WebSocketDisconnect:
+        await websocket_service.disconnect(websocket)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
         await websocket_service.disconnect(websocket)
 

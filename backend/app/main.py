@@ -17,7 +17,8 @@ app.add_middleware(
 
 app.include_router(api_router)
 
+# Only start the broadcast loop on startup if we have configured it to run
 @app.on_event("startup")
 async def startup_event():
-    # Start the websocket broadcast loop
+    # Start the websocket broadcast loop - it will check for active connections
     asyncio.create_task(websocket_service.position_broadcast_loop()) 

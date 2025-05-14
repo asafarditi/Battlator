@@ -1,8 +1,9 @@
 import asyncio
 import time
 import math
+from typing import List
 from app.models import Coordinates, Enemy, ENEMY_CAPABILITIES
-from backend.app.services import websocket_service
+from app.services import websocket_service
 
 # Global state to track current position and route
 current_position = None
@@ -28,10 +29,11 @@ def interpolate_position(start: Coordinates, end: Coordinates, fraction: float) 
     """Interpolate between two points by a fraction (0-1)"""
     return Coordinates(
         lat=start.lat + (end.lat - start.lat) * fraction,
-        lng=start.lng + (end.lng - start.lng) * fraction
+        lng=start.lng + (end.lng - start.lng) * fraction,
+        alt=start.alt + (end.alt - start.alt) * fraction
     )
 
-def calculate_route(route_path: list[Coordinates]):
+def calculate_route(route_path: List[Coordinates]):
     """Calculate and save the route segments for later movement"""
     global route_waypoints, route_segments
     
