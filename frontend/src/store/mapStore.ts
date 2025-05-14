@@ -12,12 +12,12 @@ interface MapState {
   // Route state
   currentRoute: Route | null;
   routes: Route[];
-
+  setRoutes: (routes: Route[]) => void;
   // Threat zones
   threatZones: ThreatZone[];
   drawingCoordinates: number[][];
   selectedThreatLevel: ThreatLevel;
-  
+
   // Enemy state
   selectedEnemyType: EnemyType;
 
@@ -37,7 +37,7 @@ interface MapState {
   updateDrawingCoordinates: (coordinates: number[][]) => void;
   clearDrawingCoordinates: () => void;
   setSelectedThreatLevel: (level: ThreatLevel) => void;
-  
+
   setSelectedEnemyType: (type: EnemyType) => void;
 
   startMission: (routeId: string) => void;
@@ -52,11 +52,12 @@ export const useMapStore = create<MapState>((set) => ({
 
   currentRoute: null,
   routes: [],
+  setRoutes: (routes: Route[]) => set({ routes }),
 
   threatZones: [],
   drawingCoordinates: [],
   selectedThreatLevel: ThreatLevel.MEDIUM,
-  
+
   selectedEnemyType: EnemyType.PERSON,
 
   isMissionActive: false,
@@ -89,7 +90,7 @@ export const useMapStore = create<MapState>((set) => ({
   clearDrawingCoordinates: () => set({ drawingCoordinates: [] }),
 
   setSelectedThreatLevel: (level) => set({ selectedThreatLevel: level }),
-  
+
   setSelectedEnemyType: (type) => set({ selectedEnemyType: type }),
 
   startMission: (routeId) =>

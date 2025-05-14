@@ -19,14 +19,18 @@ async def plan_route(request: RouteRequest):
     end = (request.end.lng, request.end.lat)
     path_points = pathfinder.find_paths(start, end)
     print(len(path_points))
-    path_coords = [PathPoint(coordinates=Coordinates(lat=pt[1], lng=pt[0], alt=1.1), threatScore=0.0) for pt in path_points[0]]
-    route = Route(
-        id="generated-route",
-        path=path_coords,
-        distance=0.0,  # Optionally calculate distance
-        riskScore=0.0  # Optionally calculate risk
-    )
-    return RouteResponse(route=route)
+    
+    routes = []
+    for i, path in enumerate(path_points):
+        path_coords = [PathPoint(coordinates=Coordinates(lat=pt[1], lng=pt[0], alt=1.1), threatScore=0.0) for pt in path]
+        route = Route(
+            id=f"generated-route-{i}",
+            path=path_coords,
+            distance=0.0,  # Optionally calculate distance
+            riskScore=0.0  # Optionally calculate risk
+        )
+        routes.append(route)
+    return RouteResponse(routes=routes)
 
 
 @router.post("/api/calculate-route")

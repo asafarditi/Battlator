@@ -10,14 +10,14 @@ const api_path = "http://127.0.0.1:8000";
 export enum EnemyType {
   PERSON = "person",
   VEHICLE = "vehicle",
-  TANK = "tank"
+  TANK = "tank",
 }
 
 export const api = {
   /**
    * Plans a route between two points
    */
-  planRoute: async (from: Position, to: Position): Promise<Route> => {
+  planRoute: async (from: Position, to: Position): Promise<Route[]> => {
     // Log the points being sent to the backend
 
     const response = await fetch(`${api_path}/api/plan-route`, {
@@ -46,16 +46,17 @@ export const api = {
 
     console.log("Received route from backend:", data);
 
-    const points = data.route.path.map((point: any) => ({
-      latitude: point.coordinates.lat,
-      longitude: point.coordinates.lng,
-      altitude: point.coordinates.alt,
+    return data.routes.map((route: any) => ({
+      id: route.id,
+      points: route.path.map((point: any) => ({
+        coordinates: {
+          latitude: point.coordinates.lat,
+          longitude: point.coordinates.lng,
+          altitude: point.coordinates.alt,
+        },
+        threatScore: point.threatScore,
+      })),
     }));
-
-    return {
-      id: data.id,
-      points: points,
-    };
   },
 
   /**
@@ -114,30 +115,27 @@ export const api = {
     }
     return response.json();
   },
-  
+
   /**
    * Adds a single point enemy with a specific type (person, vehicle, tank)
    */
-  addSingleEnemy: async (
-    position: Position, 
-    type: EnemyType
-  ): Promise<{ success: boolean }> => {
+  addSingleEnemy: async (position: Position, type: EnemyType): Promise<{ success: boolean }> => {
     // Define capabilities and risk based on enemy type
     const enemyConfig = {
       [EnemyType.PERSON]: {
         capability: { range: 200, damage: 0.3 },
-        risk_potential: 0.2
+        risk_potential: 0.2,
       },
       [EnemyType.VEHICLE]: {
         capability: { range: 500, damage: 0.6 },
-        risk_potential: 0.5
+        risk_potential: 0.5,
       },
       [EnemyType.TANK]: {
         capability: { range: 1000, damage: 0.9 },
-        risk_potential: 0.8
-      }
+        risk_potential: 0.8,
+      },
     };
-    
+
     const response = await fetch(`${api_path}/api/add-enemy`, {
       method: "POST",
       headers: {
@@ -146,20 +144,22 @@ export const api = {
       body: JSON.stringify({
         id: generateId(),
         type: type,
-        location: [{
-          lat: position.latitude,
-          lng: position.longitude,
-          alt: position.altitude
-        }],
+        location: [
+          {
+            lat: position.latitude,
+            lng: position.longitude,
+            alt: position.altitude,
+          },
+        ],
         capability: enemyConfig[type].capability,
-        risk_potential: enemyConfig[type].risk_potential
+        risk_potential: enemyConfig[type].risk_potential,
       }),
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to add ${type} enemy`);
     }
-    
+
     return response.json();
-  }
+  },
 };

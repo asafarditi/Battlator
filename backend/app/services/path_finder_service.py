@@ -82,11 +82,19 @@ class PathFinderService:
         penalty = 1000
         penalty_radius = 200
         paths = []
+        unique_paths = set()
         for _ in range(num_paths):
             # A* search
             path_nodes, cost = self._a_star_search(start_idx, end_idx)
             if not path_nodes:
                 break
+                
+            # Convert path nodes to tuple for hashing
+            path_tuple = tuple(map(tuple, path_nodes))
+            if path_tuple in unique_paths:
+                continue
+            unique_paths.add(path_tuple)
+                
             # Convert to geo coordinates
             path = []
             for node in path_nodes:
@@ -96,8 +104,11 @@ class PathFinderService:
             paths.append(path)
             # Apply penalty to path area
             self._apply_path_penalty(path_nodes, penalty, penalty_radius)
+            print(self.cost)
         # Restore original cost map
         self.cost = original_cost
+        
+        print(f"Found {len(paths)} unique paths")
         return paths
 
     def _a_star_search(self, start, goal):

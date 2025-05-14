@@ -16,7 +16,18 @@ const MAPBOX_TOKEN = "pk.eyJ1IjoiYW10cnRtIiwiYSI6ImNrcWJzdG41aTBsbHEyb2sxeTdsa2F
 
 // Tank icon component
 const TankIcon = ({ size = 24, className = "" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
     <rect x="2" y="12" width="20" height="8" rx="2" />
     <rect x="6" y="8" width="12" height="4" rx="1" />
     <line x1="2" y1="16" x2="22" y2="16" />
@@ -40,6 +51,8 @@ const MapContainer: React.FC = () => {
     selectedDestination,
     mapMode,
     currentRoute,
+    routes,
+    setRoutes,
     threatZones,
     drawingCoordinates,
     selectedThreatLevel,
@@ -87,10 +100,12 @@ const MapContainer: React.FC = () => {
       setSelectedDestination(clickedPosition);
 
       try {
-        // Call the route planning API
-        const route = await api.planRoute(currentPosition, clickedPosition);
-        setCurrentRoute(route);
-        addRoute(route);
+        // Call the route planning API and get 3 routes
+        const routes: Route[] = await api.planRoute(currentPosition, clickedPosition);
+        // Set the first route as current route
+        setCurrentRoute(routes[0] as Route);
+        // Add all 3 routes to the store
+        setRoutes(routes);
       } catch (error) {
         console.error("Error planning route:", error);
       }
@@ -224,22 +239,23 @@ const MapContainer: React.FC = () => {
         {selectedDestination && <DestinationMarker position={selectedDestination} />}
 
         {/* Route line if available */}
-        {currentRoute && (
+        {console.log(routes)}
+        {routes.map((route) => (
           <Source
-            id="route-source"
+            id={`route-source-${route.id}`}
             type="geojson"
             data={{
               type: "Feature",
               properties: {},
               geometry: {
                 type: "LineString",
-                coordinates: currentRoute.points.map((p) => [p.longitude, p.latitude]),
+                coordinates: route.points.map((p) => [p.coordinates.longitude, p.coordinates.latitude]),
               },
             }}
           >
-            <Layer {...getRouteLayer()} />
+            <Layer {...({ ...getRouteLayer(), id: `route-layer-${route.id}` } as any)} />
           </Source>
-        )}
+        ))}
 
         {/* Threat zones */}
         {threatZones.map((zone) => (
@@ -277,11 +293,7 @@ const MapContainer: React.FC = () => {
 
         {/* Placed enemy markers */}
         {placedEnemies.map((enemy) => (
-          <Marker
-            key={enemy.id}
-            longitude={enemy.position.longitude}
-            latitude={enemy.position.latitude}
-          >
+          <Marker key={enemy.id} longitude={enemy.position.longitude} latitude={enemy.position.latitude}>
             <div className="bg-gray-900 bg-opacity-75 p-1 rounded-full border-2 border-white flex items-center justify-center">
               {getEnemyIcon(enemy.type)}
             </div>

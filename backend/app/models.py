@@ -49,5 +49,5 @@ class RouteRequest(BaseModel):
     end: Coordinates
 
 class RouteResponse(BaseModel):
-    route: Route
+    routes: List[Route]
     alternativeRoutes: Optional[List[Route]] = None
