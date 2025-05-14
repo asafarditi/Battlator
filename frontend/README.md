@@ -1,193 +1,65 @@
-# Tactical Route Planner Boilerplate
+# Waze for Commanders
 
-A full-stack geospatial intelligence application for route planning with threat zone avoidance, built for rapid hackathon development.
+A tactical map application that helps battlefield commanders respond to real-time mission updates.
 
 ## Features
 
-- **Interactive Map**: Browse and interact with a map interface
-- **Marker Placement**: Add start/end points for route planning
-- **Threat Zone Drawing**: Draw areas to avoid during route planning
-- **Route Planning**: Calculate optimal routes avoiding threat zones
-- **Vantage Point Analysis**: Identify optimal observation positions with view-shed
-- **Layer Controls**: Toggle map features on/off
+- Interactive map integration with Mapbox GL JS
+- Real-time position tracking with WebSocket integration
+- Threat zone drawing with polygon creation
+- Mission control with route planning functionality
+- Army-inspired, futuristic UI
 
 ## Installation
 
 ```bash
-# Clone the repository
-git clone <repo-url>
-
-# Navigate to project folder
-cd tactical-route-planner
-
-# Install dependencies
 npm install
 ```
 
-## Development
+## Running the Development Server
 
 ```bash
-# Start the development server
 npm run dev
 ```
 
-The application will be available at `http://localhost:8080`.
+This will start the development server, typically at http://localhost:5173.
 
 ## Project Structure
 
-### Frontend
+- `src/components/map/` - Map-related components (markers, layers)
+- `src/components/ui/` - UI components (control panel, notifications)
+- `src/services/` - API and WebSocket services (mocked for now)
+- `src/store/` - Application state management
+- `src/types/` - TypeScript type definitions
+- `src/utils/` - Utility functions
 
-```
-src/
-├── components/         # UI components
-│   ├── InfoPanel/      # Information display components
-│   └── Map/            # Map-related components
-├── hooks/              # Custom React hooks
-├── pages/              # Application pages
-├── services/           # API service layer
-├── types/              # TypeScript type definitions
-└── utils/              # Utility functions and mock data
-```
+## Implementation Notes
 
-### Backend API (Stubbed)
+This is a frontend-only implementation with mocked backend services:
 
-The backend is currently stubbed with mock implementations for:
+- Backend API endpoints are mocked in `src/services/api.ts`
+- WebSocket connections are simulated in `src/services/websocket.ts`
+- All data is stored in memory using Zustand state management
 
-- **POST /api/plan-route**: Calculate a route between two points
-  - Input: `{ start, end, threatAreas }`
-  - Output: `{ route: { path, distance, elevation, riskScore } }`
-- **GET /api/suggest-vantage**: Find optimal observation point
-  - Output: `{ position, visibilityPolygon, coverageScore }`
+### Mock Services
 
-## Implementation Details
+The application uses several mock services that will be replaced with actual implementations when a backend is available:
 
-### A\* Pathfinding (Stubbed)
+1. **API Service** (`src/services/api.ts`)
+   - Route planning
+   - Threat zone submission
+   - Mission control
 
-The route planning uses a mock implementation that simulates A\* pathfinding:
+2. **WebSocket Service** (`src/services/websocket.ts`)
+   - Position updates
+   - Alert messages
 
-- Each threat area increases the "cost" of traveling through that region
-- The algorithm balances the shortest path with threat avoidance
-- The route includes metadata about distance, elevation gain, and risk score
+Look for `TODO` comments throughout the codebase for notes on where actual backend integration should be implemented.
 
-### View-shed Analysis (Stubbed)
+## Future Improvements
 
-The vantage point finder uses a mock implementation that:
-
-- Calculates a theoretical position with good visibility of the route
-- Generates a polygon representing the observable area
-- Assigns a coverage score indicating visibility quality
-
-## Extension Points
-
-Areas ready for hackathon development:
-
-1. **Real A\* Implementation**: Replace mock route planning with actual algorithm
-2. **Terrain Data**: Add elevation data for more realistic route planning
-3. **Multiple Routes**: Implement alternative route suggestions
-4. **Threat Analysis**: Add more detailed threat scoring and visualization
-5. **Real-time Updates**: Add WebSocket for collaborative planning
-6. **Authentication**: Add user authentication and route saving
-
-## Technologies Used
-
-- React with TypeScript
-- Leaflet for interactive maps
-- Tailwind CSS for styling
-- Mock API services (ready for real backend integration)
-
-## License
-
-This project is meant as a hackathon starting point and is available for unrestricted use.
-
-## Backend (Python FastAPI)
-
-A real backend is implemented using FastAPI (Python):
-
-- **POST /api/plan-route**: Calculate a route between two points
-  - Input: `{ start, end, threatAreas }`
-  - Output: `{ route: { path, distance, elevation, riskScore } }`
-- **GET /api/suggest-vantage**: Find optimal observation point
-  - Output: `{ position, visibilityPolygon, coverageScore }`
-- **GET /health**: Health check endpoint
-
-**Backend Setup:**
-
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-The backend runs on `http://localhost:8000` by default.
-
-> See `backend/README.md` for more details.
-
----
-
-## Project Structure
-
-### Frontend
-
-```
-src/
-├── components/         # UI components
-│   ├── InfoPanel/      # Information display components
-│   └── Map/            # Map-related components
-├── hooks/              # Custom React hooks
-├── pages/              # Application pages
-├── services/           # API service layer
-├── types/              # TypeScript type definitions
-└── utils/              # Utility functions and mock data
-```
-
-### Backend API (Stubbed)
-
-The backend is currently stubbed with mock implementations for:
-
-- **POST /api/plan-route**: Calculate a route between two points
-  - Input: `{ start, end, threatAreas }`
-  - Output: `{ route: { path, distance, elevation, riskScore } }`
-- **GET /api/suggest-vantage**: Find optimal observation point
-  - Output: `{ position, visibilityPolygon, coverageScore }`
-
-## Implementation Details
-
-### A\* Pathfinding (Stubbed)
-
-The route planning uses a mock implementation that simulates A\* pathfinding:
-
-- Each threat area increases the "cost" of traveling through that region
-- The algorithm balances the shortest path with threat avoidance
-- The route includes metadata about distance, elevation gain, and risk score
-
-### View-shed Analysis (Stubbed)
-
-The vantage point finder uses a mock implementation that:
-
-- Calculates a theoretical position with good visibility of the route
-- Generates a polygon representing the observable area
-- Assigns a coverage score indicating visibility quality
-
-## Extension Points
-
-Areas ready for hackathon development:
-
-1. **Real A\* Implementation**: Replace mock route planning with actual algorithm
-2. **Terrain Data**: Add elevation data for more realistic route planning
-3. **Multiple Routes**: Implement alternative route suggestions
-4. **Threat Analysis**: Add more detailed threat scoring and visualization
-5. **Real-time Updates**: Add WebSocket for collaborative planning
-6. **Authentication**: Add user authentication and route saving
-
-## Technologies Used
-
-- React with TypeScript
-- Leaflet for interactive maps
-- Tailwind CSS for styling
-- Mock API services (ready for real backend integration)
-
-## License
-
-This project is meant as a hackathon starting point and is available for unrestricted use.
+- Integration with actual backend services
+- Offline mode support
+- Enhanced threat visualization
+- Multi-user collaboration features
+- Historical mission replay

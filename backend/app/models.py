@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional, Literal, Dict
+from enum import Enum
 
 
 class EnemyType(int, Enum):
@@ -39,12 +40,6 @@ class Route(BaseModel):
     path: List[PathPoint]
     distance: float
     riskScore: float
-
-class VantagePoint(BaseModel):
-    id: str
-    position: Coordinates
-    visibilityPolygon: List[Coordinates]
-    coverageScore: float
 
 class RouteRequest(BaseModel):
     start: Coordinates
