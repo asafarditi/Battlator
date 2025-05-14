@@ -1,66 +1,53 @@
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Eye, EyeOff, Route, Shield } from "lucide-react";
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Layers, Route as RouteIcon, Eye, AlertTriangle } from 'lucide-react';
-import { MapLayerToggleProps } from '@/types';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+interface LayerVisibility {
+  threatAreas: boolean;
+  route: boolean;
+  viewshed: boolean;
+}
 
-const MapLayers: React.FC<{
-  visibleLayers: {
-    threatAreas: boolean;
-    route: boolean;
-    viewshed: boolean;
-  };
-  onToggleLayer: (layer: string) => void;
-}> = ({ visibleLayers, onToggleLayer }) => {
+interface MapLayersProps {
+  visibleLayers: LayerVisibility;
+  onToggleLayer: (layer: keyof LayerVisibility) => void;
+}
+
+const MapLayers: React.FC<MapLayersProps> = ({ visibleLayers, onToggleLayer }) => {
   return (
-    <Card className="w-full bg-card text-card-foreground">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Layers className="h-5 w-5" />
-          Map Layers
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Switch 
-              id="threat-layer" 
-              checked={visibleLayers.threatAreas}
-              onCheckedChange={() => onToggleLayer('threatAreas')}
-            />
-            <Label htmlFor="threat-layer" className="flex items-center gap-2 cursor-pointer">
-              <AlertTriangle className="h-4 w-4 text-tactical-orange" />
-              Threat Areas
-            </Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Switch 
-              id="route-layer" 
-              checked={visibleLayers.route}
-              onCheckedChange={() => onToggleLayer('route')}
-            />
-            <Label htmlFor="route-layer" className="flex items-center gap-2 cursor-pointer">
-              <RouteIcon className="h-4 w-4 text-tactical-green" />
-              Route Path
-            </Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Switch 
-              id="viewshed-layer" 
-              checked={visibleLayers.viewshed}
-              onCheckedChange={() => onToggleLayer('viewshed')}
-            />
-            <Label htmlFor="viewshed-layer" className="flex items-center gap-2 cursor-pointer">
-              <Eye className="h-4 w-4 text-tactical-lightBlue" />
-              View-Shed
-            </Label>
-          </div>
-        </div>
-      </CardContent>
+    <Card className="p-2 bg-background/80 backdrop-blur-sm border-border/50">
+      <div className="flex flex-col gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`flex items-center gap-2 ${visibleLayers.route ? "text-tactical-green" : "text-muted-foreground"}`}
+          onClick={() => onToggleLayer("route")}
+        >
+          <Route className="h-4 w-4" />
+          {visibleLayers.route ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`flex items-center gap-2 ${visibleLayers.threatAreas ? "text-tactical-red" : "text-muted-foreground"}`}
+          onClick={() => onToggleLayer("threatAreas")}
+        >
+          <Shield className="h-4 w-4" />
+          {visibleLayers.threatAreas ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`flex items-center gap-2 ${visibleLayers.viewshed ? "text-tactical-lightBlue" : "text-muted-foreground"}`}
+          onClick={() => onToggleLayer("viewshed")}
+        >
+          <Eye className="h-4 w-4" />
+          {visibleLayers.viewshed ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+        </Button>
+      </div>
     </Card>
   );
 };
