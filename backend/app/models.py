@@ -4,6 +4,7 @@ from typing import List, Optional, Literal, Dict
 class Coordinates(BaseModel):
     lat: float
     lng: float
+    alt: float
 
 class Enemy(BaseModel):
     id: str
