@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Literal, Dict
 from enum import Enum
 
@@ -15,7 +15,7 @@ class RiskLevel(str, Enum):
 class Coordinates(BaseModel):
     lat: float
     lng: float
-    alt: float
+    alt: Optional[float] = Field(default=0.0)
 
 class Enemy(BaseModel):
     id: str
@@ -37,7 +37,7 @@ class PathPoint(BaseModel):
 
 class Route(BaseModel):
     id: str
-    path: List[PathPoint]
+    path: List[Coordinates]
     distance: float
     riskScore: float
 
