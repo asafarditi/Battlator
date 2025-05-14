@@ -15,7 +15,7 @@ class RiskLevel(str, Enum):
 class Coordinates(BaseModel):
     lat: float
     lng: float
-    alt: float
+    alt: float = 0.0
 
 class Enemy(BaseModel):
     id: str
