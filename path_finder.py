@@ -13,17 +13,21 @@ import random
 import copy
 from scipy.spatial.distance import cdist
 from matplotlib.path import Path
+import geopandas as gpd
+from shapely.geometry import LineString, Point
 
 class PathFinderGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Path Finder")
         
-        # Load cost map
+        # Create matplotlib figure for plotting first
+        self.fig, self.ax = plt.subplots(figsize=(10, 8))
+        
+        # Load cost map (after fig and ax are created)
         self.load_cost_map()
         
-        # Create matplotlib figure for plotting
-        self.fig, self.ax = plt.subplots(figsize=(10, 8))
+        # Set up extent from loaded coordinates
         self.extent = [self.x_coords.min(), self.x_coords.max(), 
                       self.y_coords.min(), self.y_coords.max()]
         
@@ -206,8 +210,147 @@ class PathFinderGUI:
             _, (inds_y, inds_x) = distance_transform_edt(mask_missing, return_indices=True)
             self.cost[mask_missing] = self.cost[inds_y[mask_missing], inds_x[mask_missing]]
         
+        # Load and process roads to reduce costs
+        self.apply_road_cost_reduction()
+        
         # Store original cost map for reuse
         self.original_cost = self.cost.copy()
+
+    def apply_road_cost_reduction(self):
+        """
+        Load roads from CSV file and reduce the cost of cells containing roads by 15
+        """
+        try:
+            # Find the roads CSV file
+            csv_dir = os.path.dirname(os.path.abspath(__file__))
+            roads_file = os.path.join(csv_dir, 'clipped_roads_utm.csv')
+            if not os.path.exists(roads_file):
+                # Try looking in src directory
+                roads_file = os.path.join(os.path.dirname(csv_dir), 'src', 'clipped_roads_utm.csv')
+            
+            if not os.path.exists(roads_file):
+                # Try to find the file
+                from tkinter import filedialog
+                messagebox.showinfo("Roads File Not Found", 
+                                "Please select the clipped_roads_utm.csv file (cancel to skip)")
+                roads_file = filedialog.askopenfilename(title="Select Roads CSV file", 
+                                                      filetypes=[("CSV files", "*.csv")])
+                if not roads_file:  # User canceled
+                    print("Roads file not loaded. Proceeding without road cost reduction.")
+                    # Initialize empty road mask
+                    self.road_mask = np.zeros_like(self.cost, dtype=bool)
+                    return
+            
+            # Load roads CSV file
+            roads_df = pd.read_csv(roads_file)
+            
+            # Create mask for cells containing roads
+            road_mask = np.zeros_like(self.cost, dtype=bool)
+            
+            # Process each road segment
+            for _, road in roads_df.iterrows():
+                # Extract LineString geometry from the 'geometry' column which contains WKT
+                if 'geometry' not in road:
+                    print(f"Warning: 'geometry' column not found in road data. Columns: {road.keys()}")
+                    continue
+                    
+                linestring_str = road['geometry']
+                
+                # Parse the WKT format
+                if isinstance(linestring_str, str) and linestring_str.startswith('LINESTRING'):
+                    # Extract coordinates from WKT format
+                    coords_str = linestring_str.strip('LINESTRING ()').split(',')
+                    coords = []
+                    
+                    for coord_str in coords_str:
+                        try:
+                            x, y = map(float, coord_str.strip().split())
+                            coords.append((x, y))
+                        except ValueError:
+                            print(f"Warning: Could not parse coordinate: {coord_str}")
+                            continue
+                    
+                    # Create a dense set of points along the line
+                    points = self.interpolate_line(coords)
+                    
+                    # Find corresponding grid cells
+                    for x, y in points:
+                        # Find the closest grid point
+                        x_idx = np.abs(self.x_coords - x).argmin()
+                        y_idx = np.abs(self.y_coords - y).argmin()
+                        
+                        # Mark as road if within bounds
+                        if 0 <= y_idx < self.ny and 0 <= x_idx < self.nx:
+                            road_mask[y_idx, x_idx] = True
+            
+            # Reduce cost for road cells (but don't go below 0)
+            road_cost_reduction = 15
+            self.cost[road_mask] = np.maximum(0, self.cost[road_mask] - road_cost_reduction)
+            
+            # Store road mask for visualization
+            self.road_mask = road_mask
+            
+            # Add road visualization to the plot
+            self.visualize_roads(road_mask)
+            
+            print(f"Roads loaded successfully: found {np.sum(road_mask)} road cells")
+            
+        except Exception as e:
+            print(f"Error processing roads file: {str(e)}")
+            # Initialize empty road mask
+            self.road_mask = np.zeros_like(self.cost, dtype=bool)
+
+    def interpolate_line(self, coords, spacing=10):
+        """
+        Interpolate points along a line with specified spacing
+        
+        Args:
+            coords: List of (x, y) coordinate tuples
+            spacing: Spacing between interpolated points in meters
+            
+        Returns:
+            List of interpolated (x, y) points
+        """
+        if len(coords) < 2:
+            return coords
+            
+        # Create a LineString from coordinates
+        line = LineString(coords)
+        
+        # Interpolate points along the line
+        distances = np.arange(0, line.length, spacing)
+        points = [line.interpolate(distance) for distance in distances]
+        
+        # Extract coordinates from points
+        return [(point.x, point.y) for point in points]
+        
+    def visualize_roads(self, road_mask):
+        """
+        Add road visualization to the plot
+        
+        Args:
+            road_mask: Boolean mask of cells containing roads
+        """
+        # Safety check
+        if not hasattr(self, 'ax') or self.ax is None:
+            print("Warning: Plot axis not initialized, skipping road visualization")
+            return
+            
+        try:
+            # Get coordinates of road cells
+            road_indices = np.where(road_mask)
+            road_y = road_indices[0]  # Row indices (y/northing)
+            road_x = road_indices[1]  # Column indices (x/easting)
+            
+            # Convert to UTM coordinates
+            road_utm_x = [self.x_coords[x] for x in road_x]
+            road_utm_y = [self.y_coords[y] for y in road_y]
+            
+            # Plot roads as a scatter plot with small black dots
+            self.road_scatter = self.ax.scatter(road_utm_x, road_utm_y, color='black', 
+                                             s=2, alpha=0.5, zorder=1, label='Roads')
+        except Exception as e:
+            print(f"Error visualizing roads: {str(e)}")
 
     def on_canvas_click(self, event):
         if event.xdata is None or event.ydata is None:
@@ -495,7 +638,7 @@ class PathFinderGUI:
         if not self.start_point or not self.end_point:
             messagebox.showwarning("Warning", "Please select both start and end points")
             return
-        print(self.start_point, self.end_point)
+            
         # Remove any existing path lines
         for path_line in self.path_lines:
             if path_line is not None:
@@ -528,20 +671,49 @@ class PathFinderGUI:
             
             # Calculate path cost on original cost map plus polygon costs
             original_cost = 0
-            for j in range(len(path_nodes) - 1):
-                from_node = path_nodes[j]
-                to_node = path_nodes[j+1]
-                # Calculate base movement cost
-                move_cost = self.original_cost[to_node]
-                # Add polygon cost
-                move_cost += self.polygon_cost[to_node]
-                # Adjust for diagonal movement
-                if from_node[0] != to_node[0] and from_node[1] != to_node[1]:
-                    move_cost *= 1.414  # Diagonal cost adjustment
-                original_cost += move_cost
+            risk_points = []  # List to store points in risk areas
+            
+            for j in range(len(path_nodes)):
+                node = path_nodes[j]
+                utm_coords = (self.x_coords[node[1]], self.y_coords[node[0]])
+                
+                # Check if this point is in a risk area
+                if self.polygon_cost[node] > 0:
+                    risk_type = "High Risk" if np.isinf(self.polygon_cost[node]) else "Medium Risk"
+                    risk_points.append((utm_coords, risk_type))
+                
+                # Calculate movement cost (skip for last point)
+                if j < len(path_nodes) - 1:
+                    from_node = node
+                    to_node = path_nodes[j+1]
+                    # Calculate base movement cost
+                    move_cost = self.original_cost[to_node]
+                    # Add polygon cost
+                    move_cost += self.polygon_cost[to_node]
+                    # Adjust for diagonal movement
+                    if from_node[0] != to_node[0] and from_node[1] != to_node[1]:
+                        move_cost *= 1.414  # Diagonal cost adjustment
+                    original_cost += move_cost
             
             # Update path info label
-            self.path_labels[i].config(text=f"{self.path_names[i]}: Cost = {original_cost:.2f}")
+            road_info = ""
+            if hasattr(self, 'road_mask'):
+                # Count points on roads
+                road_points = []
+                for node in path_nodes:
+                    if self.road_mask[node]:
+                        utm_coords = (self.x_coords[node[1]], self.y_coords[node[0]])
+                        road_points.append(utm_coords)
+                
+                if road_points:
+                    road_percentage = (len(road_points) / len(path_nodes)) * 100
+                    road_info = f" (Road usage: {road_percentage:.1f}%)"
+            
+            self.path_labels[i].config(text=f"{self.path_names[i]}: Cost = {original_cost:.2f}{road_info}")
+            
+            # Display risk points if any
+            if risk_points:
+                self.display_risk_points(i, risk_points)
             
         self.canvas.draw()
         
@@ -669,6 +841,13 @@ class PathFinderGUI:
             self.img.set_clim(vmin=display_cost[~np.isinf(combined_cost)].min(), 
                            vmax=200)
             self.ax.set_title("Combined Cost Map")
+        
+        # Make sure roads are shown in the legend
+        if hasattr(self, 'road_scatter'):
+            handles, labels = self.ax.get_legend_handles_labels()
+            if 'Roads' not in labels:
+                # If roads are not in the legend, add them
+                self.ax.legend()
             
         self.canvas.draw()
         
@@ -689,6 +868,74 @@ class PathFinderGUI:
         self.update_visualization()
         
         self.canvas.draw()
+
+    def display_risk_points(self, path_index, risk_points):
+        """
+        Display information about risk points for a specific path
+        
+        Args:
+            path_index: Index of the path
+            risk_points: List of ((x, y), risk_type) tuples
+        """
+        if not risk_points:
+            return
+            
+        # Create risk point window
+        risk_window = tk.Toplevel(self.root)
+        risk_window.title(f"Risk Points - {self.path_names[path_index]}")
+        risk_window.geometry("550x300")
+        
+        # Header
+        tk.Label(risk_window, text=f"Risk Points for {self.path_names[path_index]}",
+                font=("Arial", 12, "bold")).pack(pady=10)
+        
+        # Create frame for the risk points list
+        list_frame = tk.Frame(risk_window)
+        list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        # Scrollbar
+        scrollbar = tk.Scrollbar(list_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Create listbox
+        risk_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, font=("Courier", 10))
+        risk_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=risk_listbox.yview)
+        
+        # Add header
+        risk_listbox.insert(tk.END, f"{'Point X':^15} {'Point Y':^15} {'Risk Type':^15} {'On Road':^10}")
+        risk_listbox.insert(tk.END, "-" * 55)
+        
+        # Add risk points
+        for (x, y), risk_type in risk_points:
+            # Check if point is on a road
+            x_idx = np.abs(self.x_coords - x).argmin()
+            y_idx = np.abs(self.y_coords - y).argmin()
+            on_road = "Yes" if hasattr(self, 'road_mask') and 0 <= y_idx < self.ny and 0 <= x_idx < self.nx and self.road_mask[y_idx, x_idx] else "No"
+            
+            risk_listbox.insert(tk.END, f"{x:15.2f} {y:15.2f} {risk_type:15} {on_road:^10}")
+            
+        # Add summary
+        tk.Label(risk_window, text=f"Total Risk Points: {len(risk_points)}",
+                font=("Arial", 10, "bold")).pack(pady=5)
+                
+        # Highlight risk points on the map
+        for (x, y), risk_type in risk_points:
+            # Different color for high risk vs medium risk
+            color = 'red' if risk_type == "High Risk" else 'orange'
+            
+            # Check if on road for marker shape
+            x_idx = np.abs(self.x_coords - x).argmin()
+            y_idx = np.abs(self.y_coords - y).argmin()
+            on_road = hasattr(self, 'road_mask') and 0 <= y_idx < self.ny and 0 <= x_idx < self.nx and self.road_mask[y_idx, x_idx]
+            
+            # Use different marker for points on roads
+            marker = '^' if on_road else 'o'
+            
+            # Plot the risk point
+            point_marker = self.ax.plot(x, y, marker, color=color, markersize=8, 
+                                     alpha=0.7, zorder=4)[0]
+            self.path_lines.append(point_marker)  # Add to path_lines for cleanup later
 
 if __name__ == "__main__":
     root = tk.Tk()
