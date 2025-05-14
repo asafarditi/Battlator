@@ -1,10 +1,12 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from app.models import Coordinates, ThreatArea, Route, Enemy, RouteRequest, RouteResponse
+from app.models import Coordinates, PathPoint, ThreatArea, Route, Enemy, RouteRequest, RouteResponse
 from app.services.movement_service import add_new_enemy, calculate_route, start_movement, stop_movement, get_current_position
 from app.services import websocket_service
 import asyncio
+from app.services.path_finder_service import PathFinderService
 
 router = APIRouter()
+pathfinder = PathFinderService()
 
 @router.get("/health")
 async def health_check():
@@ -12,15 +14,17 @@ async def health_check():
 
 @router.post("/api/plan-route", response_model=RouteResponse)
 async def plan_route(request: RouteRequest):
-    # Return mock route
+    # Use the pathfinder to get the path
+    start = (request.start.lng, request.start.lat)
+    end = (request.end.lng, request.end.lat)
+    path_points = pathfinder.find_paths(start, end)
+    print(len(path_points))
+    path_coords = [PathPoint(coordinates=Coordinates(lat=pt[1], lng=pt[0], alt=1.1), threatScore=0.0) for pt in path_points[0]]
     route = Route(
-        id="mock-route",
-        path=[
-            Coordinates(lat=request.start.lat, lng=request.start.lng, alt=1.1),
-            Coordinates(lat=request.end.lat, lng=request.end.lng, alt=1.1)
-        ],
-        distance=1234.5,
-        riskScore=0.2
+        id="generated-route",
+        path=path_coords,
+        distance=0.0,  # Optionally calculate distance
+        riskScore=0.0  # Optionally calculate risk
     )
     return RouteResponse(route=route)
 

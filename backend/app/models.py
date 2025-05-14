@@ -40,7 +40,7 @@ class PathPoint(BaseModel):
 
 class Route(BaseModel):
     id: str
-    path: List[Coordinates]
+    path: List[PathPoint]
     distance: float
     riskScore: float
 

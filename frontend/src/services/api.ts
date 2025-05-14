@@ -44,10 +44,12 @@ export const api = {
 
     const data = await response.json();
 
+    console.log("Received route from backend:", data);
+
     const points = data.route.path.map((point: any) => ({
-      latitude: point.lat,
-      longitude: point.lng,
-      altitude: point.alt,
+      latitude: point.coordinates.lat,
+      longitude: point.coordinates.lng,
+      altitude: point.coordinates.alt,
     }));
 
     return {

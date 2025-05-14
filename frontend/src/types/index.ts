@@ -4,9 +4,14 @@ export type Position = {
   altitude: number;
 };
 
+export type PathPoint = {
+  coordinates: Position;
+  threatScore: number;
+};
+
 export type Route = {
   id: string;
-  points: Position[];
+  points: PathPoint[];
 };
 
 export enum ThreatLevel {

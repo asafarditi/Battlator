@@ -1,2 +1,10 @@
 fastapi
 uvicorn 
+folium
+shapely
+pydantic
+pandas
+numpy
+matplotlib
+scipy
+networkx

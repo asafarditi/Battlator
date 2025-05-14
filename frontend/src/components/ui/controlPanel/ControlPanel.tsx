@@ -41,24 +41,24 @@ const ControlPanel: React.FC = () => {
       alert("Please plan a route first");
       return;
     }
-    
+
     try {
       await api.startMission(currentRoute.id);
       startMission(currentRoute.id);
-      
+
       // Connect to WebSocket for position updates
       websocketService.connect();
     } catch (error) {
       console.error("Error starting mission:", error);
     }
   };
-  
+
   // End the mission
   const handleEndMission = async () => {
     try {
       await api.endMission();
       endMission();
-      
+
       // Disconnect from WebSocket
       websocketService.disconnect();
     } catch (error) {
@@ -82,13 +82,13 @@ const ControlPanel: React.FC = () => {
           </div>
         )}
       </div>
-      
+
       {/* Position info */}
       <div className="mb-4 font-mono text-sm">
         <p className="text-gray-400">CURRENT POSITION:</p>
         <p className="text-white">{formatCoordinates(currentPosition.latitude, currentPosition.longitude)}</p>
       </div>
-      
+
       {/* Mode buttons */}
       <div className="mb-4">
         <p className="text-gray-400 mb-2">MAP MODE:</p>
@@ -131,7 +131,7 @@ const ControlPanel: React.FC = () => {
           </button>
         </div>
       </div>
-      
+
       {/* Threat level selector (only visible in DRAW_THREAT mode) */}
       {mapMode === "DRAW_THREAT" && (
         <div className="mb-4">
@@ -140,9 +140,7 @@ const ControlPanel: React.FC = () => {
             <button
               onClick={() => setSelectedThreatLevel(ThreatLevel.MEDIUM)}
               className={`p-2 rounded-md flex items-center justify-center ${
-                selectedThreatLevel === ThreatLevel.MEDIUM
-                  ? "bg-yellow-600"
-                  : "bg-gray-700 hover:bg-gray-600"
+                selectedThreatLevel === ThreatLevel.MEDIUM ? "bg-yellow-600" : "bg-gray-700 hover:bg-gray-600"
               }`}
             >
               <ShieldAlert size={18} className="mr-2" />
@@ -151,16 +149,14 @@ const ControlPanel: React.FC = () => {
             <button
               onClick={() => setSelectedThreatLevel(ThreatLevel.HIGH)}
               className={`p-2 rounded-md flex items-center justify-center ${
-                selectedThreatLevel === ThreatLevel.HIGH
-                  ? "bg-red-600"
-                  : "bg-gray-700 hover:bg-gray-600"
+                selectedThreatLevel === ThreatLevel.HIGH ? "bg-red-600" : "bg-gray-700 hover:bg-gray-600"
               }`}
             >
               <ShieldCheck size={18} className="mr-2" />
               High
             </button>
           </div>
-          
+
           {mapMode === "DRAW_THREAT" && (
             <div className="mt-2 text-xs text-gray-400">
               <p>Click on the map to create threat zone points. Click "Complete Zone" when finished.</p>
@@ -224,26 +220,21 @@ const ControlPanel: React.FC = () => {
               onClick={handleStartMission}
               disabled={!currentRoute}
               className={`p-3 rounded-md flex items-center justify-center ${
-                currentRoute
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-gray-700 cursor-not-allowed"
+                currentRoute ? "bg-green-600 hover:bg-green-700" : "bg-gray-700 cursor-not-allowed"
               }`}
             >
               <PlayCircle size={20} className="mr-2" />
               Start Mission
             </button>
           ) : (
-            <button
-              onClick={handleEndMission}
-              className="p-3 rounded-md flex items-center justify-center bg-red-600 hover:bg-red-700"
-            >
+            <button onClick={handleEndMission} className="p-3 rounded-md flex items-center justify-center bg-red-600 hover:bg-red-700">
               <PauseCircle size={20} className="mr-2" />
               End Mission
             </button>
           )}
         </div>
       </div>
-      
+
       {/* Usage instructions */}
       <div className="mt-4 text-xs text-gray-400 border-t border-gray-700 pt-2">
         <p className="mb-1">MAP MODE INSTRUCTIONS:</p>
