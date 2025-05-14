@@ -1,6 +1,16 @@
 from pydantic import BaseModel
 from typing import List, Optional, Literal, Dict
 
+
+class EnemyType(int, Enum):
+    SNIPER = 0
+    LAUNCHER = 1
+
+class RiskLevel(str, Enum):
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+
 class Coordinates(BaseModel):
     lat: float
     lng: float
@@ -20,11 +30,14 @@ class ThreatArea(BaseModel):
     description: Optional[str] = None
     enemies: Optional[List[Enemy]] = None
 
+class PathPoint(BaseModel):
+    coordinates: Coordinates
+    threatScore: float
+
 class Route(BaseModel):
     id: str
-    path: List[Coordinates]
+    path: List[PathPoint]
     distance: float
-    elevation: float
     riskScore: float
 
 class VantagePoint(BaseModel):
@@ -36,7 +49,6 @@ class VantagePoint(BaseModel):
 class RouteRequest(BaseModel):
     start: Coordinates
     end: Coordinates
-    threatAreas: List[ThreatArea]
 
 class RouteResponse(BaseModel):
     route: Route
