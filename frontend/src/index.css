@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -77,6 +76,10 @@
 
 .marker-end-icon {
   @apply bg-tactical-red rounded-full border-2 border-white shadow-lg p-1;
+}
+
+.marker-blueforce-icon {
+  @apply bg-tactical-blue rounded-full border-2 border-white shadow-lg p-1;
 }
 
 .threat-area {

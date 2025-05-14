@@ -1,4 +1,3 @@
-
 export interface Coordinates {
   lat: number;
   lng: number;
@@ -15,7 +14,7 @@ export interface Route {
 export interface ThreatArea {
   id: string;
   polygon: Coordinates[];
-  riskLevel: 'high' | 'medium' | 'low';
+  riskLevel: "high" | "medium" | "low";
   description?: string;
 }
 
@@ -53,7 +52,7 @@ export interface MapControlsProps {
   threatAreas: ThreatArea[];
 }
 
-export type MapMode = 'view' | 'placeStart' | 'placeEnd' | 'drawThreat';
+export type MapMode = "view" | "placeEnd" | "drawThreat";
 
 export interface MapLayerToggleProps {
   layers: {
@@ -66,12 +65,13 @@ export interface MapLayerToggleProps {
 
 export interface RouteInfoProps {
   route: Route | null;
-  vantagePoint: VantagePoint | null;
-  isLoading: boolean;
+  vantagePoint?: VantagePoint | null;
+  isLoading?: boolean;
+  threatAreas: ThreatArea[];
 }
 
 export interface MapMarkerProps {
   position: Coordinates;
-  type: 'start' | 'end' | 'vantage';
+  type: "blueforce" | "end" | "vantage";
   icon?: string;
 }

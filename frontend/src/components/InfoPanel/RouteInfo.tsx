@@ -1,22 +1,17 @@
+import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { RouteInfoProps } from "@/types";
+import { Ruler, TrendingUp, AlertCircle, Eye, Shield } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { RouteInfoProps } from '@/types';
-import { Ruler, TrendingUp, AlertCircle, Eye } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-
-const RouteInfo: React.FC<RouteInfoProps> = ({ route, vantagePoint, isLoading }) => {
+const RouteInfo: React.FC<RouteInfoProps> = ({ route, vantagePoint, isLoading, threatAreas }) => {
   if (isLoading) {
     return (
-      <Card className="w-full bg-card text-card-foreground">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg animate-pulse">Calculating...</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="h-4 bg-muted rounded animate-pulse"></div>
-            <div className="h-4 bg-muted rounded animate-pulse w-3/4"></div>
-            <div className="h-4 bg-muted rounded animate-pulse w-1/2"></div>
+      <Card className="bg-background/80 backdrop-blur-sm border-border/50">
+        <CardContent className="p-3">
+          <div className="space-y-2">
+            <div className="h-3 bg-muted/50 rounded animate-pulse"></div>
+            <div className="h-3 bg-muted/50 rounded animate-pulse w-3/4"></div>
           </div>
         </CardContent>
       </Card>
@@ -24,87 +19,94 @@ const RouteInfo: React.FC<RouteInfoProps> = ({ route, vantagePoint, isLoading })
   }
 
   if (!route && !vantagePoint) {
-    return (
-      <Card className="w-full bg-card text-card-foreground">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Route Information</CardTitle>
-          <CardDescription>
-            Set start and end points, then calculate a route to see details here.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-muted-foreground">
-          No route or vantage point data available yet.
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   return (
-    <Card className="w-full bg-card text-card-foreground">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Route Information</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-5">
+    <Card className="bg-background/80 backdrop-blur-sm border-border/50">
+      <CardContent className="p-3">
+        <div className="space-y-3 text-xs">
           {route && (
-            <>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <Ruler className="h-4 w-4 text-tactical-green" />
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-background/40 rounded p-2 flex flex-col items-center">
+                  <div className="flex items-center gap-1 text-tactical-green mb-1">
+                    <Ruler className="h-3 w-3" />
                     Distance
                   </div>
-                  <span className="text-sm font-bold">{route.distance} km</span>
+                  <span className="font-mono font-medium">{route.distance}km</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <TrendingUp className="h-4 w-4 text-tactical-yellow" />
-                    Elevation Gain
+                <div className="bg-background/40 rounded p-2 flex flex-col items-center">
+                  <div className="flex items-center gap-1 text-tactical-yellow mb-1">
+                    <TrendingUp className="h-3 w-3" />
+                    Elevation
                   </div>
-                  <span className="text-sm font-bold">{route.elevation} m</span>
+                  <span className="font-mono font-medium">{route.elevation}m</span>
                 </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <AlertCircle className="h-4 w-4 text-tactical-red" />
-                      Risk Score
-                    </div>
-                    <span className="text-sm font-bold">{route.riskScore}/100</span>
+                <div className="bg-background/40 rounded p-2 flex flex-col items-center">
+                  <div className="flex items-center gap-1 text-tactical-red mb-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Risk
                   </div>
-                  <Progress 
-                    value={route.riskScore} 
-                    max={100} 
-                    className="h-2"
-                    indicatorClassName={`${
-                      route.riskScore > 70 ? 'bg-tactical-red' :
-                      route.riskScore > 40 ? 'bg-tactical-orange' :
-                      'bg-tactical-green'
-                    }`}
-                  />
+                  <span className="font-mono font-medium">{route.riskScore}%</span>
                 </div>
               </div>
-              <div className="border-t border-border pt-3">
-                <div className="text-xs text-muted-foreground">
-                  Route ID: {route.id.slice(0, 8)}...
-                </div>
-              </div>
-            </>
+              <Progress
+                value={route.riskScore}
+                max={100}
+                className="h-1"
+                indicatorClassName={`${
+                  route.riskScore > 70 ? "bg-tactical-red" : route.riskScore > 40 ? "bg-tactical-orange" : "bg-tactical-green"
+                }`}
+              />
+            </div>
           )}
-          
-          {vantagePoint && (
-            <div className="space-y-3 pt-2">
-              <div className="text-sm font-medium flex items-center gap-1">
-                <Eye className="h-4 w-4 text-tactical-lightBlue" />
-                Vantage Point
+
+          {threatAreas.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1 text-tactical-red text-[10px] uppercase font-medium mb-1">
+                <Shield className="h-3 w-3" />
+                Active Threats
               </div>
-              <div className="text-xs space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Position:</span>
-                  <span>{vantagePoint.position.lat.toFixed(6)}, {vantagePoint.position.lng.toFixed(6)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Coverage Score:</span>
-                  <span>{vantagePoint.coverageScore}%</span>
+              <div className="grid grid-cols-2 gap-1">
+                {threatAreas.map((area) => (
+                  <div key={area.id} className="bg-background/40 rounded px-2 py-1 flex items-center justify-between">
+                    <span className="text-[10px] uppercase">{area.description}</span>
+                    <span
+                      className={`text-[10px] font-medium ${
+                        area.riskLevel === "high"
+                          ? "text-tactical-red"
+                          : area.riskLevel === "medium"
+                          ? "text-tactical-orange"
+                          : "text-tactical-green"
+                      }`}
+                    >
+                      {area.riskLevel}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {vantagePoint && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1 text-tactical-lightBlue text-[10px] uppercase font-medium mb-1">
+                <Eye className="h-3 w-3" />
+                Observation Post
+              </div>
+              <div className="bg-background/40 rounded p-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">GRID REF</span>
+                    <span className="font-mono text-[10px]">
+                      {vantagePoint.position.lat.toFixed(4)},{vantagePoint.position.lng.toFixed(4)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">COVERAGE</span>
+                    <span className="font-mono text-[10px] text-tactical-lightBlue">{vantagePoint.coverageScore}%</span>
+                  </div>
                 </div>
               </div>
             </div>
