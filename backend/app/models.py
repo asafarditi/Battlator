@@ -1,15 +1,23 @@
 from pydantic import BaseModel
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict
 
 class Coordinates(BaseModel):
     lat: float
     lng: float
+
+class Enemy(BaseModel):
+    id: str
+    type: str
+    location: List[Coordinates]
+    capability: Dict[str, float]
+    risk_potential: float
 
 class ThreatArea(BaseModel):
     id: str
     polygon: List[Coordinates]
     riskLevel: Literal['high', 'medium', 'low']
     description: Optional[str] = None
+    enemies: Optional[List[Enemy]] = None
 
 class Route(BaseModel):
     id: str
@@ -31,4 +39,4 @@ class RouteRequest(BaseModel):
 
 class RouteResponse(BaseModel):
     route: Route
-    alternativeRoutes: Optional[List[Route]] = None 
+    alternativeRoutes: Optional[List[Route]] = None

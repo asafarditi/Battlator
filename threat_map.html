@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    
+        <script>
+            L_NO_TOUCH = false;
+            L_DISABLE_3D = false;
+        </script>
+    
+    <style>html, body {width: 100%;height: 100%;margin: 0;padding: 0;}</style>
+    <style>#map {position:absolute;top:0;bottom:0;right:0;left:0;}</style>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_15ff9d79e9d7d4fb05503590885f387f {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+        
+    <script src="https://cdn.jsdelivr.net/gh/ardhi/Leaflet.MousePosition/src/L.Control.MousePosition.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/ardhi/Leaflet.MousePosition/src/L.Control.MousePosition.min.css"/>
+</head>
+<body>
+    
+    
+            <div class="folium-map" id="map_15ff9d79e9d7d4fb05503590885f387f" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_15ff9d79e9d7d4fb05503590885f387f = L.map(
+                "map_15ff9d79e9d7d4fb05503590885f387f",
+                {
+                    center: [34.5553, 135.5553],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 13,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_5090a4a0ad9d6c3b47400d130b50e415 = L.tileLayer(
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 19,
+  "maxNativeZoom": 19,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors",
+  "subdomains": "abc",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_5090a4a0ad9d6c3b47400d130b50e415.addTo(map_15ff9d79e9d7d4fb05503590885f387f);
+        
+    
+            var mouse_position_def68da4642d3c060aebe317baab832c = new L.Control.MousePosition(
+                {
+  "position": "topright",
+  "separator": " | ",
+  "emptyString": "NaN",
+  "lngFirst": false,
+  "numDigits": 5,
+  "prefix": "Coordinates:",
+}
+            );
+            mouse_position_def68da4642d3c060aebe317baab832c.options["latFormatter"] =
+                function(num) {return L.Util.formatNum(num, 5);};;
+            mouse_position_def68da4642d3c060aebe317baab832c.options["lngFormatter"] =
+                function(num) {return L.Util.formatNum(num, 5);};;
+            map_15ff9d79e9d7d4fb05503590885f387f.addControl(mouse_position_def68da4642d3c060aebe317baab832c);
+        
+    
+            var polygon_a7e5a342ec857139faab13a5df7568c1 = L.polygon(
+                [[5526.95457025809, 1228.0628032903182], [5208.282382063206, 2278.5842212445027], [4690.786828894253, 3246.750304909772], [3994.354974644666, 4095.354974644666], [3145.7503049097727, 4791.786828894253], [2177.5842212445027, 5309.282382063206], [1127.0628032903187, 5627.95457025809], [34.55700000000034, 5735.557], [-1057.9488032903178, 5627.95457025809], [-2108.4702212445027, 5309.282382063206], [-3076.6363049097713, 4791.786828894254], [-3925.240974644666, 4095.354974644666], [-4621.672828894254, 3246.750304909772], [-5139.168382063206, 2278.584221244503], [-5457.84057025809, 1228.0628032903203], [-5565.443, 135.55700000000067], [-5457.84057025809, -956.9488032903189], [-5139.168382063207, -2007.470221244502], [-4621.672828894255, -2975.6363049097713], [-3925.2409746446674, -3824.240974644666], [-3076.636304909772, -4520.672828894253], [-2108.4702212445063, -5038.168382063204], [-1057.9488032903205, -5356.84057025809], [34.55699999999897, -5464.443], [1127.0628032903185, -5356.84057025809], [2177.5842212445036, -5038.168382063205], [3145.75030490977, -4520.672828894255], [3994.354974644665, -3824.2409746446674], [4690.786828894253, -2975.636304909772], [5208.282382063204, -2007.470221244506], [5526.95457025809, -956.9488032903207], [5634.557, 135.557], [5526.95457025809, 1228.0628032903182]],
+                {"bubblingMouseEvents": true, "color": "red", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "red", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 1.0, "smoothFactor": 1.0, "stroke": true, "weight": 3}
+            ).addTo(map_15ff9d79e9d7d4fb05503590885f387f);
+        
+    
+        var popup_947f467071828117bf9edfb54badc520 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_74185f6f4fbfac09dcc9d4098833e140 = $(`<div id="html_74185f6f4fbfac09dcc9d4098833e140" style="width: 100.0%; height: 100.0%;">Merged threat area containing artillery, sniper, infantry units</div>`)[0];
+                popup_947f467071828117bf9edfb54badc520.setContent(html_74185f6f4fbfac09dcc9d4098833e140);
+            
+        
+
+        polygon_a7e5a342ec857139faab13a5df7568c1.bindPopup(popup_947f467071828117bf9edfb54badc520)
+        ;
+
+        
+    
+    
+            var circle_a77fe1fa032f6edb063de821fcc15432 = L.circle(
+                [34.5553, 135.5553],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "blue", "fillOpacity": 0.1, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 700.0, "stroke": true, "weight": 3}
+            ).addTo(map_15ff9d79e9d7d4fb05503590885f387f);
+        
+    
+        var popup_91b89971a9352ecddb1c74be470b0329 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_3485c1b06c31f383613e5fabd483d780 = $(`<div id="html_3485c1b06c31f383613e5fabd483d780" style="width: 100.0%; height: 100.0%;">                     <b>INFANTRY</b><br>                     Capabilities:<br>                     - Assault Rifles: 500.0m<br>- Rocket-Propelled Grenades (RPGs): 700.0m                     <br>Risk Potential: 75.0                 </div>`)[0];
+                popup_91b89971a9352ecddb1c74be470b0329.setContent(html_3485c1b06c31f383613e5fabd483d780);
+            
+        
+
+        circle_a77fe1fa032f6edb063de821fcc15432.bindPopup(popup_91b89971a9352ecddb1c74be470b0329)
+        ;
+
+        
+    
+    
+            circle_a77fe1fa032f6edb063de821fcc15432.bindTooltip(
+                `<div>
+                     infantry unit - Range: 700.0m
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_c58e6851b4b2242a17faffafc1af4fdf = L.circleMarker(
+                [34.5553, 135.5553],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "blue", "fillOpacity": 0.7, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 8, "stroke": true, "weight": 3}
+            ).addTo(map_15ff9d79e9d7d4fb05503590885f387f);
+        
+    
+        var popup_7bb1bebd68fac0613178e590b58f74f2 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_de14c310da668568157c58fdaf62afa6 = $(`<div id="html_de14c310da668568157c58fdaf62afa6" style="width: 100.0%; height: 100.0%;">                     <b>INFANTRY</b><br>                     Capabilities:<br>                     - Assault Rifles: 500.0m<br>- Rocket-Propelled Grenades (RPGs): 700.0m                     <br>Risk Potential: 75.0                 </div>`)[0];
+                popup_7bb1bebd68fac0613178e590b58f74f2.setContent(html_de14c310da668568157c58fdaf62afa6);
+            
+        
+
+        circle_marker_c58e6851b4b2242a17faffafc1af4fdf.bindPopup(popup_7bb1bebd68fac0613178e590b58f74f2)
+        ;
+
+        
+    
+    
+            circle_marker_c58e6851b4b2242a17faffafc1af4fdf.bindTooltip(
+                `<div>
+                     infantry unit
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_8f9831cb748097e9aeb96c74b06ba528 = L.circle(
+                [34.556, 135.556],
+                {"bubblingMouseEvents": true, "color": "purple", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "purple", "fillOpacity": 0.1, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 1200.0, "stroke": true, "weight": 3}
+            ).addTo(map_15ff9d79e9d7d4fb05503590885f387f);
+        
+    
+        var popup_8166e5372dde29d00ac87a273067a172 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_6960351e0fce5168992676434c2d3c62 = $(`<div id="html_6960351e0fce5168992676434c2d3c62" style="width: 100.0%; height: 100.0%;">                     <b>SNIPER</b><br>                     Capabilities:<br>                     - Sniper Rifles: 1200.0m                     <br>Risk Potential: 85.0                 </div>`)[0];
+                popup_8166e5372dde29d00ac87a273067a172.setContent(html_6960351e0fce5168992676434c2d3c62);
+            
+        
+
+        circle_8f9831cb748097e9aeb96c74b06ba528.bindPopup(popup_8166e5372dde29d00ac87a273067a172)
+        ;
+
+        
+    
+    
+            circle_8f9831cb748097e9aeb96c74b06ba528.bindTooltip(
+                `<div>
+                     sniper unit - Range: 1200.0m
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_f28f31b552caa6f08914b332d86dbed3 = L.circleMarker(
+                [34.556, 135.556],
+                {"bubblingMouseEvents": true, "color": "purple", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "purple", "fillOpacity": 0.7, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 8, "stroke": true, "weight": 3}
+            ).addTo(map_15ff9d79e9d7d4fb05503590885f387f);
+        
+    
+        var popup_24bd68e5cb58064927378687cd08a935 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_72b20cb42a99fcbc25fd0f602b85a664 = $(`<div id="html_72b20cb42a99fcbc25fd0f602b85a664" style="width: 100.0%; height: 100.0%;">                     <b>SNIPER</b><br>                     Capabilities:<br>                     - Sniper Rifles: 1200.0m                     <br>Risk Potential: 85.0                 </div>`)[0];
+                popup_24bd68e5cb58064927378687cd08a935.setContent(html_72b20cb42a99fcbc25fd0f602b85a664);
+            
+        
+
+        circle_marker_f28f31b552caa6f08914b332d86dbed3.bindPopup(popup_24bd68e5cb58064927378687cd08a935)
+        ;
+
+        
+    
+    
+            circle_marker_f28f31b552caa6f08914b332d86dbed3.bindTooltip(
+                `<div>
+                     sniper unit
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_e4253a8928930ef9c87aaeb0c5453a82 = L.circle(
+                [34.557, 135.557],
+                {"bubblingMouseEvents": true, "color": "orange", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "orange", "fillOpacity": 0.1, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 5600.0, "stroke": true, "weight": 3}
+            ).addTo(map_15ff9d79e9d7d4fb05503590885f387f);
+        
+    
+        var popup_d5d7c20f1c234937cad688d05de6c845 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_bc2c80c63d7dfd75d9a7a78f46399a26 = $(`<div id="html_bc2c80c63d7dfd75d9a7a78f46399a26" style="width: 100.0%; height: 100.0%;">                     <b>ARTILLERY</b><br>                     Capabilities:<br>                     - Mortars - Medium (81mm): 5600.0m                     <br>Risk Potential: 90.0                 </div>`)[0];
+                popup_d5d7c20f1c234937cad688d05de6c845.setContent(html_bc2c80c63d7dfd75d9a7a78f46399a26);
+            
+        
+
+        circle_e4253a8928930ef9c87aaeb0c5453a82.bindPopup(popup_d5d7c20f1c234937cad688d05de6c845)
+        ;
+
+        
+    
+    
+            circle_e4253a8928930ef9c87aaeb0c5453a82.bindTooltip(
+                `<div>
+                     artillery unit - Range: 5600.0m
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_8b09fa57fb7e75ecfceb9e8bf851936c = L.circleMarker(
+                [34.557, 135.557],
+                {"bubblingMouseEvents": true, "color": "orange", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "orange", "fillOpacity": 0.7, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 8, "stroke": true, "weight": 3}
+            ).addTo(map_15ff9d79e9d7d4fb05503590885f387f);
+        
+    
+        var popup_ac3cd9dd98e7c2ebd619eadead6b09e6 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_5fc5ca1e98334febbbc2fd5b6c35f7de = $(`<div id="html_5fc5ca1e98334febbbc2fd5b6c35f7de" style="width: 100.0%; height: 100.0%;">                     <b>ARTILLERY</b><br>                     Capabilities:<br>                     - Mortars - Medium (81mm): 5600.0m                     <br>Risk Potential: 90.0                 </div>`)[0];
+                popup_ac3cd9dd98e7c2ebd619eadead6b09e6.setContent(html_5fc5ca1e98334febbbc2fd5b6c35f7de);
+            
+        
+
+        circle_marker_8b09fa57fb7e75ecfceb9e8bf851936c.bindPopup(popup_ac3cd9dd98e7c2ebd619eadead6b09e6)
+        ;
+
+        
+    
+    
+            circle_marker_8b09fa57fb7e75ecfceb9e8bf851936c.bindTooltip(
+                `<div>
+                     artillery unit
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+</script>
+</html>
