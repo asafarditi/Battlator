@@ -88,7 +88,7 @@ const ControlPanel: React.FC = () => {
     <div className="absolute top-4 left-4 bg-gray-900 bg-opacity-85 text-white p-4 rounded-lg shadow-lg max-w-sm">
       <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
         <h2 className="text-xl font-bold flex items-center">
-          <Map className="mr-2" /> Waze for Commanders
+          <Map className="mr-2" /> Waze Of War
         </h2>
       </div>
 

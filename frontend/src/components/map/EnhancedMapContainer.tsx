@@ -829,26 +829,26 @@ const EnhancedMapContainer: React.FC = () => {
             {!isMissionActive ? (
               <button
                 onClick={handleStartMission}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-full shadow-lg font-bold flex items-center transition-all duration-200 hover:scale-105"
+                className="bg-green-600 hover:bg-green-700 text-white p-3 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105"
+                title="Start Mission"
               >
-                <PlayCircle size={24} className="mr-2" />
-                Start Mission
+                <PlayCircle size={28} />
               </button>
             ) : (
               <>
                 <button
                   onClick={handleEndMission}
-                  className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-full shadow-lg font-bold flex items-center transition-all duration-200 hover:scale-105"
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white p-3 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105"
+                  title="Pause Mission"
                 >
-                  <PauseCircle size={24} className="mr-2" />
-                  Pause Mission
+                  <PauseCircle size={28} />
                 </button>
                 <button
                   onClick={handleStopMission}
-                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-full shadow-lg font-bold flex items-center transition-all duration-200 hover:scale-105"
+                  className="bg-red-600 hover:bg-red-700 text-white p-3 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105"
+                  title="Stop Mission"
                 >
-                  <X size={24} className="mr-2" />
-                  Stop Mission
+                  <X size={28} />
                 </button>
               </>
             )}
@@ -858,7 +858,7 @@ const EnhancedMapContainer: React.FC = () => {
 
       {/* Route selection instruction panel */}
       {mapMode === "CHOOSING_ROUTE" && (
-        <div className="absolute top-32 left-4 bg-gray-900 bg-opacity-85 text-white p-4 rounded-lg shadow-lg max-w-sm">
+        <div className="absolute top-[39rem] left-4 bg-gray-900 bg-opacity-85 text-white p-4 rounded-lg shadow-lg max-w-sm">
           <h3 className="text-lg font-bold mb-2 flex items-center">
             <Navigation className="mr-2" /> {isMissionActive ? "Rerouting Required" : "Choose a Route"}
           </h3>

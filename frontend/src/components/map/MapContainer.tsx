@@ -10,10 +10,44 @@ import { getRouteLayer, getThreatZoneLayer } from "./mapLayers";
 import { Position as MapPosition } from "geojson";
 // @ts-ignore - Resolving type declaration issue with @turf/turf
 import * as turf from "@turf/turf";
-import { User, Truck, AlertTriangle } from "lucide-react";
+import { User, Truck, AlertTriangle, Map as MapIcon, Mountain, Layers, Sun, Moon } from "lucide-react";
 
 // Mapbox API key from the requirements
 const MAPBOX_TOKEN = "pk.eyJ1IjoiYW10cnRtIiwiYSI6ImNrcWJzdG41aTBsbHEyb2sxeTdsa2FkOG4ifQ.bmaBLt4tVWrM4CVr5DLVYQ";
+
+// Available map styles
+const MAP_STYLES = [
+  {
+    id: "satellite-streets",
+    name: "Satellite Streets",
+    url: "mapbox://styles/mapbox/satellite-streets-v12",
+    icon: <Layers size={20} />,
+  },
+  {
+    id: "satellite",
+    name: "Satellite",
+    url: "mapbox://styles/mapbox/satellite-v9",
+    icon: <Sun size={20} />,
+  },
+  {
+    id: "outdoors",
+    name: "Outdoors",
+    url: "mapbox://styles/mapbox/outdoors-v12",
+    icon: <Mountain size={20} />,
+  },
+  {
+    id: "streets",
+    name: "Streets",
+    url: "mapbox://styles/mapbox/streets-v12",
+    icon: <MapIcon size={20} />,
+  },
+  {
+    id: "dark",
+    name: "Dark",
+    url: "mapbox://styles/mapbox/dark-v11",
+    icon: <Moon size={20} />,
+  },
+];
 
 // Tank icon component
 const TankIcon = ({ size = 24, className = "" }) => (
@@ -69,6 +103,12 @@ const MapContainer: React.FC = () => {
   // State for placed enemies
   const [placedEnemies, setPlacedEnemies] = useState<PlacedEnemy[]>([]);
 
+  // State for selected map style
+  const [selectedMapStyle, setSelectedMapStyle] = useState<string>(MAP_STYLES[0].url);
+
+  // State to control map style selector visibility
+  const [showStyleSelector, setShowStyleSelector] = useState<boolean>(false);
+
   const mapRef = useRef<any>(null);
   const [viewState, setViewState] = useState({
     longitude: currentPosition.longitude,
@@ -107,8 +147,8 @@ const MapContainer: React.FC = () => {
       // Place an enemy on the map
       try {
         const response = await api.addSingleEnemy(clickedPosition, selectedEnemyType);
-        console.log('Response from API in MapContainer:', response);
-        
+        console.log("Response from API in MapContainer:", response);
+
         if (response.success) {
           // Add the enemy to local state
           const newEnemy: PlacedEnemy = {
@@ -117,26 +157,33 @@ const MapContainer: React.FC = () => {
             type: selectedEnemyType,
           };
           setPlacedEnemies((prev) => [...prev, newEnemy]);
-          
+
           // Process and add threat areas returned from the backend
-          if (response.threatAreas && response.threatAreas.length > 0) {
-            console.log('Adding threat areas to the map store:', response.threatAreas);
+          const responseWithThreat = response as { success: boolean; threatAreas?: { coordinates: any; level: string }[] };
+          if (responseWithThreat.threatAreas && responseWithThreat.threatAreas.length > 0) {
+            console.log("Adding threat areas to the map store:", responseWithThreat.threatAreas);
             // Add each threat area to the store
-            response.threatAreas.forEach(threatArea => {
-              console.log('Threat area coordinates format:', JSON.stringify(threatArea.coordinates));
+            responseWithThreat.threatAreas.forEach((threatArea) => {
+              console.log("Threat area coordinates format:", JSON.stringify(threatArea.coordinates));
               // Ensure coordinates are in the correct format
               if (threatArea.coordinates && threatArea.coordinates.length > 0) {
-                addThreatZone(threatArea.coordinates, threatArea.level);
+                addThreatZone(threatArea.coordinates, threatArea.level as any);
               }
             });
           } else {
-            console.log('No threat areas received from backend');
+            console.log("No threat areas received from backend");
           }
         }
       } catch (error) {
         console.error(`Error adding ${selectedEnemyType} enemy:`, error);
       }
     }
+  };
+
+  // Handle map style change
+  const changeMapStyle = (styleUrl: string) => {
+    setSelectedMapStyle(styleUrl);
+    setShowStyleSelector(false);
   };
 
   // Complete threat zone drawing
@@ -235,7 +282,7 @@ const MapContainer: React.FC = () => {
         ref={mapRef}
         {...viewState}
         onMove={(evt) => setViewState(evt.viewState)}
-        mapStyle="mapbox://styles/mapbox/satellite-streets-v12"
+        mapStyle={selectedMapStyle}
         mapboxAccessToken={MAPBOX_TOKEN}
         onClick={handleMapClick}
         attributionControl={false}
@@ -250,6 +297,7 @@ const MapContainer: React.FC = () => {
         {console.log(routes)}
         {routes.map((route) => (
           <Source
+            key={route.id}
             id={`route-source-${route.id}`}
             type="geojson"
             data={{
@@ -267,62 +315,56 @@ const MapContainer: React.FC = () => {
 
         {/* Threat zones */}
         {threatZones.map((zone) => {
-          console.log('Rendering threat zone:', zone);
-          console.log('Zone coordinates type:', typeof zone.coordinates);
-          console.log('Zone coordinates length:', zone.coordinates?.length);
-          
+          console.log("Rendering threat zone:", zone);
+          console.log("Zone coordinates type:", typeof zone.coordinates);
+          console.log("Zone coordinates length:", zone.coordinates?.length);
+
           // Validate coordinates format
-          const coordsValid = Array.isArray(zone.coordinates) && 
-                              zone.coordinates.length > 0;
-          
+          const coordsValid = Array.isArray(zone.coordinates) && zone.coordinates.length > 0;
+
           if (!coordsValid) {
-            console.error('Invalid coordinates format:', zone.coordinates);
+            console.error("Invalid coordinates format:", zone.coordinates);
             return null;
           }
-          
+
           // Debug the structure of the coordinates
-          console.log('First coordinate array:', zone.coordinates[0]);
-          
+          console.log("First coordinate array:", zone.coordinates[0]);
+
           // Get the threat zone layer style
           const layerStyle = getThreatZoneLayer(zone.level);
-          console.log('Threat zone layer style:', layerStyle);
-          
+          console.log("Threat zone layer style:", layerStyle);
+
           // Ensure coordinates are in the proper GeoJSON format
           // GeoJSON Polygon expects: [[[lng1, lat1], [lng2, lat2], ...]]
           let formattedCoords = zone.coordinates;
-          
+
           // If coordinates aren't properly nested, wrap them
           if (!Array.isArray(zone.coordinates[0][0])) {
             formattedCoords = [zone.coordinates as any];
-            console.log('Fixed coordinates format:', formattedCoords);
+            console.log("Fixed coordinates format:", formattedCoords);
           }
-          
+
           // Construct the GeoJSON feature with proper coordinates
           const geoJsonData = {
             type: "Feature" as const,
             properties: {},
             geometry: {
               type: "Polygon" as const,
-              coordinates: formattedCoords
-            }
+              coordinates: formattedCoords,
+            },
           };
-          
-          console.log('GeoJSON data:', JSON.stringify(geoJsonData));
-          
+
+          console.log("GeoJSON data:", JSON.stringify(geoJsonData));
+
           // Generate unique IDs for this threat zone's layers
           const sourceId = `threat-zone-${zone.id}`;
           const fillLayerId = `threat-zone-fill-${zone.id}`;
           const lineLayerId = `threat-zone-line-${zone.id}`;
-          
+
           return (
-            <Source
-              key={sourceId}
-              id={sourceId}
-              type="geojson"
-              data={geoJsonData}
-            >
+            <Source key={sourceId} id={sourceId} type="geojson" data={geoJsonData}>
               {/* Fill layer for the threat zone */}
-              <Layer 
+              <Layer
                 id={fillLayerId}
                 type="fill"
                 paint={{
@@ -368,6 +410,38 @@ const MapContainer: React.FC = () => {
           </Marker>
         ))}
       </Map>
+
+      {/* Map style selector button */}
+      <div className="absolute bottom-4 left-4 z-10">
+        <button
+          onClick={() => setShowStyleSelector(!showStyleSelector)}
+          className="bg-gray-900 bg-opacity-85 text-white p-2 rounded-full shadow-lg flex items-center justify-center hover:bg-gray-800"
+          title="Change Map Style"
+        >
+          <Layers size={24} />
+        </button>
+      </div>
+
+      {/* Map style selector panel */}
+      {showStyleSelector && (
+        <div className="absolute bottom-16 left-4 bg-gray-900 bg-opacity-85 text-white p-3 rounded-lg shadow-lg z-10">
+          <h3 className="text-sm font-bold mb-2">Map Terrain</h3>
+          <div className="space-y-2">
+            {MAP_STYLES.map((style) => (
+              <button
+                key={style.id}
+                onClick={() => changeMapStyle(style.url)}
+                className={`flex items-center w-full p-2 rounded-md ${
+                  selectedMapStyle === style.url ? "bg-blue-700" : "bg-gray-800 hover:bg-gray-700"
+                }`}
+              >
+                <div className="mr-2">{style.icon}</div>
+                <span className="text-sm">{style.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Threat zone drawing controls */}
       {mapMode === "DRAW_THREAT" && drawingCoordinates.length > 0 && (
