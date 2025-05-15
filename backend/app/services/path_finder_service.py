@@ -154,7 +154,8 @@ class PathFinderService:
             num_paths: Number of paths to find (max 3)
             
         Returns:
-            List of paths, where each path is a list of (longitude, latitude) tuples
+            List of paths, where each path is a list of (longitude, latitude, risk) tuples
+            Risk is None, "Medium Risk", or "High Risk" depending on if the point is in a polygon
         """
         # Convert to UTM
         start_utm = self.transformer.transform(start[0], start[1])
@@ -198,8 +199,6 @@ class PathFinderService:
             
             # Process each node in the path
             for i, node in enumerate(path_nodes):
-                
-                
                 # Calculate actual path cost (skip last point)
                 if i < len(path_nodes) - 1:
                     from_node = node
@@ -226,16 +225,23 @@ class PathFinderService:
                 if path_nodes:
                     road_usage = (road_points / len(path_nodes)) * 100
             
-
-            # Convert to geo coordinates
+            # Convert to geo coordinates with risk assessment
             path = []
             for node in path_nodes:
+                # Determine if point is in a threat polygon and its severity
+                risk = 0
+                if self.polygon_cost[node] > 0:
+                    risk = 2 if np.isinf(self.polygon_cost[node]) else 1
+                
+                # Convert coordinates
                 utm_coords = (float(self.x_coords[node[1]]), float(self.y_coords[node[0]]))
                 geo_coords = self.transformer.transform(utm_coords[0], utm_coords[1], direction='INVERSE')
-                path.append(geo_coords)
+                
+                # Add the point with risk assessment
+                path.append((geo_coords[0], geo_coords[1], risk))
+                
             paths.append(path)
-            # Apply penalty to path area
-
+            
             # Apply penalty to path area for next iteration
             self._apply_path_penalty(path_nodes, penalty, penalty_radius)
         
@@ -249,11 +255,13 @@ class PathFinderService:
     def find_paths_simple(self, start, end, num_paths=3):
         """
         Legacy implementation - kept for backward compatibility
-        Find multiple paths without detailed info
+        Find multiple paths without detailed info, but includes risk assessment
+        
+        Returns:
+            List of paths, where each path is a list of (longitude, latitude, risk) tuples
         """
         paths = self.find_paths(start, end, num_paths)
-        # Extract just the geometry for backward compatibility
-        return [path['geometry'] for path in paths]
+        return paths
 
     def _a_star_search(self, start, goal):
         """
@@ -319,7 +327,7 @@ class PathFinderService:
         distances = cdist(all_points, path_utm_array).min(axis=1)
         distances = distances.reshape(self.cost.shape)
         penalty_mask = distances < radius
-        self.cost[penalty_mask] += penalty 
+        self.cost[penalty_mask] += penalty
 
     def _transform_polygon_to_utm(self, polygon_vertices):
         """
