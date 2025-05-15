@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useMapStore } from "../../store/mapStore";
-import { ThreatZone, Position, Route, MapMode } from "../../types";
+import { ThreatZone, Position, Route, MapMode, ThreatLevel } from "../../types";
 import { api, EnemyType } from "../../services/api";
 import { FriendlyMarker } from "./FriendlyMarker";
 import { DestinationMarker } from "./DestinationMarker";
@@ -10,9 +10,10 @@ import { getRouteLayer, getRouteGlowLayer, getThreatZoneLayer } from "./mapLayer
 import { Position as MapPosition } from "geojson";
 // @ts-ignore: turf.js typing issue
 import * as turf from "@turf/turf";
-import { User, Truck, AlertTriangle, Navigation, Clock, PlayCircle, PauseCircle, X, Target } from "lucide-react";
+import { User, Truck, AlertTriangle, Navigation, Clock, PlayCircle, PauseCircle, X, Target, Crosshair, Loader } from "lucide-react";
 import RouteCountdown from "../ui/RouteCountdown";
 import { websocketService } from "../../services/websocket";
+import { useNotificationStore } from "../../store/notificationStore";
 
 // Mapbox API key from the requirements
 const MAPBOX_TOKEN = "pk.eyJ1IjoiYW10cnRtIiwiYSI6ImNrcWJzdG41aTBsbHEyb2sxeTdsa2FkOG4ifQ.bmaBLt4tVWrM4CVr5DLVYQ";
@@ -82,8 +83,18 @@ const EnhancedMapContainer: React.FC = () => {
     clearMissionData,
   } = useMapStore();
 
+  // Access notification store
+  const { addNotification } = useNotificationStore();
+
   // State for placed enemies
   const [placedEnemies, setPlacedEnemies] = useState<PlacedEnemy[]>([]);
+  // State for tracking if follow mode is enabled
+  const [followMode, setFollowMode] = useState<boolean>(true);
+  // Add state for route planning progress
+  const [isRoutePlanning, setIsRoutePlanning] = useState<boolean>(false);
+
+  // State to track the selected route letter (A, B, C, etc.)
+  const [selectedRouteLetter, setSelectedRouteLetter] = useState<string>("");
 
   const mapRef = useRef<any>(null);
   const [viewState, setViewState] = useState({
@@ -94,6 +105,65 @@ const EnhancedMapContainer: React.FC = () => {
 
   // Check if route planning is disabled due to mission state
   const isRoutePlanningDisabled = isMissionActive || missionPaused;
+
+  // Effect for bird's-eye view follow mode
+  useEffect(() => {
+    // Only auto-follow position when mission is active and follow mode is enabled
+    if (isMissionActive && followMode) {
+      setViewState((prev) => ({
+        ...prev,
+        longitude: currentPosition.longitude,
+        latitude: currentPosition.latitude,
+      }));
+    }
+  }, [currentPosition, isMissionActive, followMode]);
+
+  // Handle manual map movements - disable follow mode
+  const handleMapMove = (evt: any) => {
+    // Disable follow mode when user manually pans the map
+    if (followMode && isMissionActive) {
+      // Check if the map center is different from current position
+      const centerChanged =
+        Math.abs(evt.viewState.longitude - currentPosition.longitude) > 0.0001 ||
+        Math.abs(evt.viewState.latitude - currentPosition.latitude) > 0.0001;
+
+      if (centerChanged) {
+        setFollowMode(false);
+      }
+    }
+
+    // Update the view state
+    setViewState(evt.viewState);
+  };
+
+  // Toggle follow mode
+  const toggleFollowMode = () => {
+    const newFollowMode = !followMode;
+    setFollowMode(newFollowMode);
+
+    // If enabling follow mode, immediately center on current position
+    if (newFollowMode) {
+      setViewState((prev) => ({
+        ...prev,
+        longitude: currentPosition.longitude,
+        latitude: currentPosition.latitude,
+      }));
+
+      // Add notification for follow mode enabled
+      addNotification({
+        type: "info",
+        message: "Follow mode enabled. Map will automatically center on your position.",
+        duration: 3000,
+      });
+    } else {
+      // Add notification for follow mode disabled
+      addNotification({
+        type: "info",
+        message: "Follow mode disabled. You can now pan the map freely.",
+        duration: 3000,
+      });
+    }
+  };
 
   // Start the mission
   const handleStartMission = async () => {
@@ -108,9 +178,77 @@ const EnhancedMapContainer: React.FC = () => {
 
       // Connect to WebSocket for position updates
       websocketService.connect();
+
+      // Add notification
+      addNotification({
+        type: "info",
+        message: "Mission started. Follow the planned route.",
+        duration: 5000,
+      });
     } catch (error) {
       console.error("Error starting mission:", error);
+
+      // Error notification
+      addNotification({
+        type: "danger",
+        message: "Failed to start mission. Please try again.",
+        duration: 5000,
+      });
     }
+  };
+
+  // Confirm route selection and start mission immediately
+  const handleConfirmRoute = async () => {
+    // Find the selected route
+    const selectedRoute = routes.find((route) => route.id === selectedRouteId);
+
+    if (selectedRoute) {
+      // Set it as the current route
+      setCurrentRoute(selectedRoute);
+
+      // Then confirm the route selection - this updates state in the store
+      confirmRouteSelection();
+
+      try {
+        // Always send the start-mission request with the new route ID
+        await api.startMission(selectedRoute.id);
+
+        // If mission is already active, just update mission state with new route
+        if (isMissionActive) {
+          addNotification({
+            type: "info",
+            message: "Route updated. Continuing mission with new route.",
+            duration: 5000,
+          });
+        } else {
+          // Start a new mission
+          startMission(selectedRoute.id);
+
+          // Connect to WebSocket for position updates
+          websocketService.connect();
+
+          addNotification({
+            type: "info",
+            message: "Mission started. Follow the planned route.",
+            duration: 5000,
+          });
+        }
+      } catch (error) {
+        console.error("Error starting/updating mission:", error);
+
+        addNotification({
+          type: "danger",
+          message: "Failed to update mission route. Please try again.",
+          duration: 5000,
+        });
+      }
+    }
+  };
+
+  // Cancel route selection
+  const handleCancelRoute = () => {
+    // Simply cancel the route selection, don't do anything else
+    cancelRouteSelection();
   };
 
   // End the mission (pause)
@@ -121,8 +259,22 @@ const EnhancedMapContainer: React.FC = () => {
 
       // Disconnect from WebSocket
       websocketService.disconnect();
+
+      // Add notification
+      addNotification({
+        type: "warning",
+        message: "Mission paused. Resume when ready.",
+        duration: 5000,
+      });
     } catch (error) {
       console.error("Error ending mission:", error);
+
+      // Error notification
+      addNotification({
+        type: "danger",
+        message: "Failed to pause mission. Please try again.",
+        duration: 5000,
+      });
     }
   };
 
@@ -140,8 +292,22 @@ const EnhancedMapContainer: React.FC = () => {
 
       // Clear placed enemies (since they're not part of the store)
       setPlacedEnemies([]);
+
+      // Add notification
+      addNotification({
+        type: "info",
+        message: "Mission terminated. All data cleared.",
+        duration: 5000,
+      });
     } catch (error) {
       console.error("Error stopping mission:", error);
+
+      // Error notification
+      addNotification({
+        type: "danger",
+        message: "Failed to stop mission. Please try again.",
+        duration: 5000,
+      });
     }
   };
 
@@ -167,7 +333,17 @@ const EnhancedMapContainer: React.FC = () => {
       // Always update the destination when in ROUTE mode and click on the map
       setSelectedDestination(clickedPosition);
 
+      // Add notification for destination set
+      addNotification({
+        type: "info",
+        message: "Destination selected. Calculating routes...",
+        duration: 3000,
+      });
+
       try {
+        // Show route planning indicator
+        setIsRoutePlanning(true);
+
         // Clear any existing routes first to avoid stale data
         setRoutes([]);
 
@@ -179,20 +355,46 @@ const EnhancedMapContainer: React.FC = () => {
 
         // Add all routes to the store
         setRoutes(routes);
+
+        // Add notification for routes calculated
+        addNotification({
+          type: "info",
+          message: `${routes.length} routes calculated. Select your preferred route.`,
+          duration: 5000,
+        });
       } catch (error) {
         console.error("Error planning route:", error);
+
+        // Error notification
+        addNotification({
+          type: "danger",
+          message: "Failed to calculate routes. Please try again.",
+          duration: 5000,
+        });
+      } finally {
+        // Hide route planning indicator
+        setIsRoutePlanning(false);
       }
     } else if (mapMode === "DRAW_THREAT") {
       // Add point to drawing coordinates
       const newCoordinates = [...drawingCoordinates, [lngLat.lng, lngLat.lat]];
       updateDrawingCoordinates(newCoordinates);
+
+      // Add notification for point added to threat zone
+      if (drawingCoordinates.length === 0) {
+        addNotification({
+          type: "info",
+          message: "Started drawing threat zone. Add more points to complete.",
+          duration: 3000,
+        });
+      }
     } else if (mapMode === "ADD_ENEMY") {
       // Place an enemy on the map
       try {
-        console.log('Adding enemy at position:', clickedPosition);
+        console.log("Adding enemy at position:", clickedPosition);
         const response = await api.addSingleEnemy(clickedPosition, selectedEnemyType);
-        console.log('Response from API:', response);
-        
+        console.log("Response from API:", response);
+
         if (response.success) {
           const newEnemy: PlacedEnemy = {
             id: `enemy-${Date.now()}`,
@@ -200,30 +402,157 @@ const EnhancedMapContainer: React.FC = () => {
             type: selectedEnemyType,
           };
           setPlacedEnemies((prev) => [...prev, newEnemy]);
-          
+
           // Process and add threat areas returned from the backend
-          if (response.threatAreas && response.threatAreas.length > 0) {
-            console.log('Received threat areas from backend:', response.threatAreas);
+          const responseWithThreat = response as { success: boolean; threatAreas?: { coordinates: any; level: string }[] };
+          if (responseWithThreat.threatAreas && responseWithThreat.threatAreas.length > 0) {
+            console.log("Received threat areas from backend:", responseWithThreat.threatAreas);
+
+            // Check if there's an intersection with the current route when mission is active
+            let hasIntersection = false;
+
             // Add each threat area to the store
-            response.threatAreas.forEach(threatArea => {
-              console.log('Adding threat area to map store:', threatArea);
-              addThreatZone(threatArea.coordinates, threatArea.level);
+            responseWithThreat.threatAreas.forEach((threatArea) => {
+              console.log("Adding threat area to map store:", threatArea);
+              addThreatZone(threatArea.coordinates, threatArea.level as ThreatLevel);
+
+              // Check for intersection with current route if mission is active
+              if (isMissionActive && currentRoute) {
+                try {
+                  // Create a polygon from the threat area
+                  const threatPolygon = turf.polygon(threatArea.coordinates);
+
+                  // Create a linestring from the route
+                  const routeCoordinates = currentRoute.points.map((p) => [p.coordinates.longitude, p.coordinates.latitude]);
+                  const routeLine = turf.lineString(routeCoordinates);
+
+                  // Check for intersection
+                  const intersection = turf.booleanIntersects(threatPolygon, routeLine);
+                  if (intersection) {
+                    hasIntersection = true;
+                  }
+                } catch (error) {
+                  console.error("Error checking route intersection:", error);
+                }
+              }
             });
+
+            // If in a mission and there's an intersection with the route, request alternative routes
+            if (isMissionActive && hasIntersection) {
+              // Add notification
+              addNotification({
+                type: "danger",
+                message: `${
+                  selectedEnemyType.charAt(0).toUpperCase() + selectedEnemyType.slice(1)
+                } enemy detected intersecting with your route! Finding alternative routes...`,
+                duration: 5000,
+              });
+
+              // Request new routes
+              (async () => {
+                try {
+                  setIsRoutePlanning(true);
+
+                  // Get destination either from selectedDestination or from the end of current route
+                  const destination =
+                    selectedDestination ||
+                    (currentRoute && currentRoute.points.length > 0
+                      ? currentRoute.points[currentRoute.points.length - 1].coordinates
+                      : null);
+
+                  if (!destination) {
+                    throw new Error("No destination available for route planning");
+                  }
+
+                  // Get new routes bypassing the threat zones
+                  const newRoutes: Route[] = await api.planRoute(currentPosition, destination);
+
+                  // Store the new routes
+                  if (newRoutes && newRoutes.length > 0) {
+                    setRoutes(newRoutes);
+
+                    // Switch to route selection mode to let the user choose
+                    setMapMode("CHOOSING_ROUTE");
+
+                    addNotification({
+                      type: "warning",
+                      message: "Threat detected on your route! Please select a new route to continue your mission.",
+                      duration: 8000,
+                    });
+                  } else {
+                    addNotification({
+                      type: "danger",
+                      message: "Unable to find alternative routes. Continue with caution!",
+                      duration: 8000,
+                    });
+                  }
+                } catch (error) {
+                  console.error("Error finding alternative routes:", error);
+                  addNotification({
+                    type: "danger",
+                    message: "Failed to calculate alternative routes. Continue with caution!",
+                    duration: 5000,
+                  });
+                } finally {
+                  setIsRoutePlanning(false);
+                }
+              })();
+            }
+            // Only show notification if not in a mission or if there's no intersection
+            else if (!isMissionActive) {
+              // Add notification for enemy added when not in mission
+              addNotification({
+                type: "danger",
+                message: `${selectedEnemyType.charAt(0).toUpperCase() + selectedEnemyType.slice(1)} enemy detected on the map.`,
+                duration: 5000,
+              });
+            }
           } else {
-            console.log('No threat areas received from backend');
+            console.log("No threat areas received from backend");
+
+            // No threat areas, so no intersection check needed
+            if (!isMissionActive) {
+              // Only show notification when not in mission mode
+              addNotification({
+                type: "danger",
+                message: `${selectedEnemyType.charAt(0).toUpperCase() + selectedEnemyType.slice(1)} enemy detected on the map.`,
+                duration: 5000,
+              });
+            }
           }
         }
       } catch (error) {
         console.error(`Error adding ${selectedEnemyType} enemy:`, error);
+
+        // Error notification
+        addNotification({
+          type: "danger",
+          message: `Failed to add ${selectedEnemyType} enemy. Please try again.`,
+          duration: 5000,
+        });
       }
     }
   };
 
   // Handle route click event in choosing route mode
-  const handleRouteClick = (routeId: string) => {
-    // Only allow route selection if mission is not active or paused
-    if (mapMode === "CHOOSING_ROUTE" && !isRoutePlanningDisabled) {
-      selectRoute(routeId);
+  const handleRouteClick = (routeId: string, routeIndex: number) => {
+    // Allow route selection if in CHOOSING_ROUTE mode regardless of mission state
+    // This enables rerouting during active missions when a threat is detected
+    if (mapMode === "CHOOSING_ROUTE") {
+      // Find the selected route
+      const selectedRoute = routes.find((route) => route.id === routeId);
+
+      if (selectedRoute) {
+        // Set it as the current route
+        setCurrentRoute(selectedRoute);
+
+        // Store the route letter (A, B, C, etc.)
+        const routeLetter = String.fromCharCode(65 + routeIndex); // Convert 0 -> A, 1 -> B, etc.
+        setSelectedRouteLetter(routeLetter);
+
+        // Select the route and show countdown
+        selectRoute(routeId);
+      }
     }
   };
 
@@ -262,8 +591,24 @@ const EnhancedMapContainer: React.FC = () => {
 
       // Clear drawing coordinates
       clearDrawingCoordinates();
+
+      // Add notification for threat zone created
+      const threatLevelName = selectedThreatLevel === "highThreat" ? "High" : selectedThreatLevel === "medThreat" ? "Medium" : "Low";
+
+      addNotification({
+        type: selectedThreatLevel === "highThreat" ? "danger" : "warning",
+        message: `${threatLevelName} threat zone added to the map.`,
+        duration: 5000,
+      });
     } catch (error) {
       console.error("Error submitting threat zone:", error);
+
+      // Error notification
+      addNotification({
+        type: "danger",
+        message: "Failed to create threat zone. Please try again.",
+        duration: 5000,
+      });
     }
   };
 
@@ -307,7 +652,7 @@ const EnhancedMapContainer: React.FC = () => {
       <Map
         ref={mapRef}
         {...viewState}
-        onMove={(evt) => setViewState(evt.viewState)}
+        onMove={handleMapMove}
         mapStyle="mapbox://styles/mapbox/satellite-streets-v12"
         mapboxAccessToken={MAPBOX_TOKEN}
         onClick={handleMapClick}
@@ -369,7 +714,7 @@ const EnhancedMapContainer: React.FC = () => {
                     className={`p-2 rounded-full ${
                       isSelected ? "bg-green-600" : "bg-blue-600"
                     } text-white font-bold flex items-center justify-center h-8 w-8 shadow-lg cursor-pointer`}
-                    onClick={() => handleRouteClick(route.id)}
+                    onClick={() => handleRouteClick(route.id, index)}
                   >
                     {String.fromCharCode(65 + index)}
                   </div>
@@ -381,61 +726,56 @@ const EnhancedMapContainer: React.FC = () => {
 
         {/* Threat zones */}
         {threatZones.map((zone) => {
-          console.log('Rendering threat zone:', zone);
-          console.log('Zone coordinates type:', typeof zone.coordinates);
-          console.log('Zone coordinates length:', zone.coordinates?.length);
-          
+          console.log("Rendering threat zone:", zone);
+          console.log("Zone coordinates type:", typeof zone.coordinates);
+          console.log("Zone coordinates length:", zone.coordinates?.length);
+
           // Validate coordinates format
           const coordsValid = Array.isArray(zone.coordinates) && zone.coordinates.length > 0;
-          
+
           if (!coordsValid) {
-            console.error('Invalid coordinates format:', zone.coordinates);
+            console.error("Invalid coordinates format:", zone.coordinates);
             return null;
           }
-          
+
           // Debug the structure of the coordinates
-          console.log('First coordinate array:', zone.coordinates[0]);
-          
+          console.log("First coordinate array:", zone.coordinates[0]);
+
           // Get the threat zone layer style
           const layerStyle = getThreatZoneLayer(zone.level);
-          console.log('Threat zone layer style:', layerStyle);
-          
+          console.log("Threat zone layer style:", layerStyle);
+
           // Ensure coordinates are in the proper GeoJSON format
           // GeoJSON Polygon expects: [[[lng1, lat1], [lng2, lat2], ...]]
           let formattedCoords = zone.coordinates;
-          
+
           // If coordinates aren't properly nested, wrap them
           if (!Array.isArray(zone.coordinates[0][0])) {
             formattedCoords = [zone.coordinates as any];
-            console.log('Fixed coordinates format:', formattedCoords);
+            console.log("Fixed coordinates format:", formattedCoords);
           }
-          
+
           // Construct the GeoJSON feature with proper coordinates
           const geoJsonData = {
             type: "Feature" as const,
             properties: {},
             geometry: {
               type: "Polygon" as const,
-              coordinates: formattedCoords
-            }
+              coordinates: formattedCoords,
+            },
           };
-          
-          console.log('GeoJSON data:', JSON.stringify(geoJsonData));
-          
+
+          console.log("GeoJSON data:", JSON.stringify(geoJsonData));
+
           // Generate unique IDs for this threat zone's layers
           const sourceId = `threat-zone-${zone.id}`;
           const fillLayerId = `threat-zone-fill-${zone.id}`;
           const lineLayerId = `threat-zone-line-${zone.id}`;
-          
+
           return (
-            <Source
-              key={sourceId}
-              id={sourceId}
-              type="geojson"
-              data={geoJsonData}
-            >
+            <Source key={sourceId} id={sourceId} type="geojson" data={geoJsonData}>
               {/* Fill layer for the threat zone */}
-              <Layer 
+              <Layer
                 id={fillLayerId}
                 type="fill"
                 paint={{
@@ -517,48 +857,37 @@ const EnhancedMapContainer: React.FC = () => {
       )}
 
       {/* Route selection instruction panel */}
-      {mapMode === "CHOOSING_ROUTE" && !showRouteCountdown && (
+      {mapMode === "CHOOSING_ROUTE" && (
         <div className="absolute top-32 left-4 bg-gray-900 bg-opacity-85 text-white p-4 rounded-lg shadow-lg max-w-sm">
           <h3 className="text-lg font-bold mb-2 flex items-center">
-            <Navigation className="mr-2" /> Choose a Route
+            <Navigation className="mr-2" /> {isMissionActive ? "Rerouting Required" : "Choose a Route"}
           </h3>
-          {isRoutePlanningDisabled ? (
-            <div className="bg-red-900 bg-opacity-75 p-3 rounded-md mb-2">
-              <p className="text-sm text-white">
-                Route selection is disabled during active or paused missions.
-                {missionPaused ? " Resume and stop" : " Stop"} the mission to change routes.
-              </p>
-            </div>
-          ) : (
-            <>
-              <p className="text-sm text-gray-300 mb-3">Click on your preferred route to select it:</p>
-              <div className="space-y-2">
-                {routes.map((route, index) => (
-                  <div
-                    key={route.id}
-                    className={`p-2 rounded flex items-center cursor-pointer ${
-                      route.id === selectedRouteId ? "bg-green-800" : "bg-gray-800 hover:bg-gray-700"
-                    }`}
-                    onClick={() => handleRouteClick(route.id)}
-                  >
-                    <div
-                      className={`h-8 w-8 rounded-full ${
-                        route.id === selectedRouteId ? "bg-green-600" : "bg-blue-600"
-                      } flex items-center justify-center mr-3`}
-                    >
-                      {String.fromCharCode(65 + index)}
-                    </div>
-                    <div>
-                      <p className="font-medium">Route {String.fromCharCode(65 + index)}</p>
-                      <p className="text-xs text-gray-400">
-                        {(route.points.length / 10).toFixed(1)} km • {Math.floor(route.points.length / 60)} min
-                      </p>
-                    </div>
-                  </div>
-                ))}
+          <p className="text-sm text-gray-300 mb-3">Click on your preferred route to select it:</p>
+          <div className="space-y-2">
+            {routes.map((route, index) => (
+              <div
+                key={route.id}
+                className={`p-2 rounded flex items-center cursor-pointer ${
+                  route.id === selectedRouteId ? "bg-green-800" : "bg-gray-800 hover:bg-gray-700"
+                }`}
+                onClick={() => handleRouteClick(route.id, index)}
+              >
+                <div
+                  className={`h-8 w-8 rounded-full ${
+                    route.id === selectedRouteId ? "bg-green-600" : "bg-blue-600"
+                  } flex items-center justify-center mr-3`}
+                >
+                  {String.fromCharCode(65 + index)}
+                </div>
+                <div>
+                  <p className="font-medium">Route {String.fromCharCode(65 + index)}</p>
+                  <p className="text-xs text-gray-400">
+                    {(route.points.length / 10).toFixed(1)} km • {Math.floor(route.points.length / 60)} min
+                  </p>
+                </div>
               </div>
-            </>
-          )}
+            ))}
+          </div>
         </div>
       )}
 
@@ -575,7 +904,20 @@ const EnhancedMapContainer: React.FC = () => {
       )}
 
       {/* Route countdown overlay */}
-      {showRouteCountdown && selectedRouteId && <RouteCountdown onConfirm={confirmRouteSelection} onCancel={cancelRouteSelection} />}
+      {showRouteCountdown && selectedRouteId && (
+        <RouteCountdown onConfirm={handleConfirmRoute} onCancel={handleCancelRoute} routeName={selectedRouteLetter} />
+      )}
+
+      {/* Route Planning Loading Indicator */}
+      {isRoutePlanning && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg p-5 flex flex-col items-center">
+            <Loader size={40} className="text-blue-600 animate-spin mb-4" />
+            <h3 className="text-lg font-bold text-gray-800">Planning Routes</h3>
+            <p className="text-gray-600">Calculating the best routes for your mission...</p>
+          </div>
+        </div>
+      )}
 
       {/* Add route planning instruction when in route mode */}
       {mapMode === "ROUTE" && !isRoutePlanningDisabled && (
@@ -587,6 +929,21 @@ const EnhancedMapContainer: React.FC = () => {
             Click anywhere on the map to set your destination point and calculate routes.
             {selectedDestination && " This will replace your current destination."}
           </p>
+        </div>
+      )}
+
+      {/* Follow mode toggle button - only show during active missions */}
+      {isMissionActive && (
+        <div className="absolute bottom-24 right-4 z-10">
+          <button
+            onClick={toggleFollowMode}
+            className={`${
+              followMode ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-600 hover:bg-gray-700"
+            } text-white px-4 py-2 rounded-full shadow-lg font-bold flex items-center transition-all duration-200`}
+          >
+            <Crosshair size={20} className="mr-2" />
+            {followMode ? "Following" : "Follow Me"}
+          </button>
         </div>
       )}
     </div>

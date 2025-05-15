@@ -109,7 +109,7 @@ const ControlPanel: React.FC = () => {
       {/* Mode buttons */}
       <div className="mb-4">
         <p className="text-gray-400 mb-2">MAP MODE:</p>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => setMapMode("VIEW")}
             className={`p-2 rounded-md flex flex-col items-center justify-center text-xs ${
@@ -132,15 +132,6 @@ const ControlPanel: React.FC = () => {
           >
             <RouteIcon size={20} className="mb-1" />
             Route
-          </button>
-          <button
-            onClick={() => setMapMode("DRAW_THREAT")}
-            className={`p-2 rounded-md flex flex-col items-center justify-center text-xs ${
-              mapMode === "DRAW_THREAT" ? "bg-blue-700" : "bg-gray-700 hover:bg-gray-600"
-            }`}
-          >
-            <AlertTriangle size={20} className="mb-1" />
-            Threat
           </button>
           <button
             onClick={() => setMapMode("ADD_ENEMY")}
@@ -295,7 +286,6 @@ const ControlPanel: React.FC = () => {
         <ul className="list-disc pl-4">
           <li>VIEW: Pan and zoom the map</li>
           <li>ROUTE: Click destination to plan route</li>
-          <li>THREAT: Draw threat zones on the map</li>
           <li>ENEMY: Place single enemies on the map</li>
         </ul>
       </div>

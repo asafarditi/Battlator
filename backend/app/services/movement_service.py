@@ -50,7 +50,7 @@ def calculate_route(route_path: list[Coordinates]):
     route_segments = []
     
     # Speed in km/h
-    speed = 5.0
+    speed = 25.0
     
     # Pre-calculate all segments
     for i in range(len(route_waypoints) - 1):
