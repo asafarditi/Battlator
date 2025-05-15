@@ -1,0 +1,24 @@
+{
+    "Handguns": 70,
+    "Submachine Guns": 150,
+    "Shotguns": 50,
+    "Assault Rifles": 500,
+    "Battle Rifles": 800,
+    "Sniper Rifles": 1200,
+    "Anti-Materiel Rifles": 2000,
+    "Thrown Grenades": 40,
+    "Grenade Launchers": 350,
+    "Rocket-Propelled Grenades (RPGs)": 700,
+    "Anti-Tank Guided Missiles (ATGMs)": 5500,
+    "Light Machine Guns": 800,
+    "Medium Machine Guns": 1200,
+    "Heavy Machine Guns": 2000,
+    "Mortars - Light (60mm)": 3500,
+    "Mortars - Medium (81mm)": 5600,
+    "Mortars - Heavy (120mm)": 8000,
+    "Howitzers": 30000,
+    "Man-Portable Air Defense Systems (MANPADS)": 4800,
+    "Rocket Artillery": 80000,
+    "Ballistic Missiles": 1000000
+  }
+  
