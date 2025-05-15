@@ -11,6 +11,11 @@ route_segments = []  # Will store pre-calculated segments for movement
 enemies = []  # List of enemies
 routes = []
 
+# Track progress through the route
+current_segment_index = 0
+current_position_index = 0
+current_route_id = None  # Track the current route ID
+
 def calculate_distance(point1: Coordinates, point2: Coordinates) -> float:
     """Calculate distance between two coordinates in kilometers (haversine formula)"""
     R = 6371  # Earth radius in km
@@ -79,10 +84,18 @@ def calculate_route(route_path: list[Coordinates]):
 
 async def start_movement(route: Route):
     """Start moving along the pre-calculated route"""
-    global current_position, is_moving
-    # Extract coordinates from route path
-    coords = [[p.coordinates.lat, p.coordinates.lng] for p in route.path]
-    calculate_route(coords)
+    global current_position, is_moving, current_segment_index, current_position_index, current_route_id
+    
+    # Check if we're continuing the same route or starting a new one
+    if current_route_id != route.id:
+        # New route - reset progress
+        current_segment_index = 0
+        current_position_index = 0
+        current_route_id = route.id
+        
+        # Extract coordinates from route path
+        coords = [[p.coordinates.lat, p.coordinates.lng] for p in route.path]
+        calculate_route(coords)
     
     if not route_segments:
         print("No route calculated")
@@ -93,25 +106,49 @@ async def start_movement(route: Route):
         return False
     
     is_moving = True
-    if(current_position is None):
+    
+    # If we don't have a position yet, start from the beginning
+    if current_position is None:
         current_position = route_waypoints[0]
+        current_segment_index = 0
+        current_position_index = 0
+    
     try:
-        # Move through each segment of the route
-        for segment in route_segments:
+        # Move through each segment of the route starting from our current progress
+        for segment_idx in range(current_segment_index, len(route_segments)):
+            segment = route_segments[segment_idx]
+            
+            # Start from the appropriate position in the current segment
+            start_pos_idx = current_position_index if segment_idx == current_segment_index else 0
+            
             # Move along the segment using pre-calculated positions
-            for position in segment["positions"]:
+            for pos_idx in range(start_pos_idx, len(segment["positions"])):
                 if not is_moving:  # Check if movement was stopped
+                    # Save progress before stopping
+                    current_segment_index = segment_idx
+                    current_position_index = pos_idx
+                    print(f"Movement stopped at segment {segment_idx}, position {pos_idx}")
                     return False
-
-                current_position = position
+                
+                current_position = segment["positions"][pos_idx]
                 print(f"Current position: {current_position}")
                 await asyncio.sleep(1)
             
+            # Update progress as we move to the next segment
+            current_segment_index = segment_idx + 1
+            current_position_index = 0
+            
             print(f"Reached waypoint: {segment['end']}")
+        
+        # If we completed the entire route, reset progress for next time
+        if current_segment_index >= len(route_segments):
+            print("Route completed, resetting progress")
+            current_segment_index = 0
+            current_position_index = 0
     
     finally:
         is_moving = False
-        print("Movement completed")
+        print(f"Movement completed or stopped. Current progress: segment {current_segment_index}, position {current_position_index}")
     
     return True
 
