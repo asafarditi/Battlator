@@ -23,7 +23,7 @@ class PathFinderService:
         # Always load from the src directory at the project root
         if csv_path is None:
             project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../'))
-            csv_file = os.path.join(project_root, 'src', 'downscaled_dem_10m.csv')
+            csv_file = os.path.join(project_root, 'src', 'downscaled_dem_20m.csv')
         else:
             csv_file = csv_path
         if not os.path.exists(csv_file):
