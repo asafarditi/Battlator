@@ -350,16 +350,16 @@ const EnhancedMapContainer: React.FC = () => {
       // Disconnect WebSocket
       websocketService.disconnect();
 
-      // Clear all mission data
+      // Clear mission data but keep enemy data
       clearMissionData();
 
-      // Clear placed enemies (since they're not part of the store)
-      setPlacedEnemies([]);
+      // DO NOT clear placed enemies when stopping mission
+      // setPlacedEnemies([]);
 
       // Add notification
       addNotification({
         type: "info",
-        message: "Mission terminated. All data cleared.",
+        message: "Mission terminated. Route data cleared. Enemies remain visible on map.",
         duration: 5000,
       });
     } catch (error) {
