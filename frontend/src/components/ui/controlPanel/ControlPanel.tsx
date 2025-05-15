@@ -1,15 +1,39 @@
-import React from 'react';
-import { useMapStore } from '../../../store/mapStore';
-import { MapMode, ThreatLevel } from '../../../types';
-import { formatCoordinates } from '../../../utils/helpers';
-import { websocketService } from '../../../services/websocket';
-import { api, EnemyType } from '../../../services/api';
-import { generateId } from '../../../utils/helpers';
-import { Map, RouteIcon, ShieldAlert, ShieldCheck, PlayCircle, PauseCircle, Navigation, AlertTriangle, Users, Truck } from 'lucide-react';
+import React from "react";
+import { useMapStore } from "../../../store/mapStore";
+import { MapMode, ThreatLevel } from "../../../types";
+import { formatCoordinates } from "../../../utils/helpers";
+import { websocketService } from "../../../services/websocket";
+import { api, EnemyType } from "../../../services/api";
+import { generateId } from "../../../utils/helpers";
+import {
+  Map,
+  RouteIcon,
+  ShieldAlert,
+  ShieldCheck,
+  PlayCircle,
+  PauseCircle,
+  Navigation,
+  AlertTriangle,
+  Users,
+  Truck,
+  Target,
+  RotateCcw,
+} from "lucide-react";
 
 // Add TankIcon if not available in lucide-react
 const TankIcon = ({ size = 24, className = "" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
     <rect x="2" y="12" width="20" height="8" rx="2" />
     <rect x="6" y="8" width="12" height="4" rx="1" />
     <line x1="2" y1="16" x2="22" y2="16" />
@@ -27,43 +51,37 @@ const ControlPanel: React.FC = () => {
     setMapMode,
     selectedThreatLevel,
     setSelectedThreatLevel,
-    isMissionActive,
     currentRoute,
-    startMission,
-    endMission,
+    selectedDestination,
     selectedEnemyType,
     setSelectedEnemyType,
+    routes,
+    startRouteSelection,
+    setSelectedDestination,
+    resetRouteData,
+    isMissionActive,
+    missionPaused,
+    setRoutes,
+    setCurrentRoute,
   } = useMapStore();
 
-  // Start the mission
-  const handleStartMission = async () => {
-    if (!currentRoute) {
-      alert("Please plan a route first");
-      return;
-    }
+  // Mission control functionality moved to EnhancedMapContainer
 
-    try {
-      await api.startMission(currentRoute.id);
-      startMission(currentRoute.id);
+  // Check if route planning/selection should be disabled
+  const isRoutePlanningDisabled = isMissionActive || missionPaused;
 
-      // Connect to WebSocket for position updates
-      websocketService.connect();
-    } catch (error) {
-      console.error("Error starting mission:", error);
-    }
-  };
+  // Check if there's any route planning data
+  const hasRoutePlanningData = selectedDestination !== null || routes.length > 0;
 
-  // End the mission
-  const handleEndMission = async () => {
-    try {
-      await api.endMission();
-      endMission();
-
-      // Disconnect from WebSocket
-      websocketService.disconnect();
-    } catch (error) {
-      console.error("Error ending mission:", error);
-    }
+  // Function to allow changing destination
+  const handleChangeDestination = () => {
+    setMapMode("ROUTE");
+    // Clear the selected destination and routes to start over
+    setSelectedDestination(null);
+    // Clear existing routes by setting an empty array
+    setRoutes([]);
+    // Reset current route
+    setCurrentRoute(null);
   };
 
   return (
@@ -72,15 +90,6 @@ const ControlPanel: React.FC = () => {
         <h2 className="text-xl font-bold flex items-center">
           <Map className="mr-2" /> Waze for Commanders
         </h2>
-        {isMissionActive && (
-          <div className="flex items-center text-green-400">
-            <span className="relative flex h-3 w-3 mr-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-            </span>
-            ACTIVE MISSION
-          </div>
-        )}
       </div>
 
       {/* Position info */}
@@ -88,6 +97,14 @@ const ControlPanel: React.FC = () => {
         <p className="text-gray-400">CURRENT POSITION:</p>
         <p className="text-white">{formatCoordinates(currentPosition.latitude, currentPosition.longitude)}</p>
       </div>
+
+      {/* Destination info - only shown when a destination is selected */}
+      {selectedDestination && (
+        <div className="mb-4 font-mono text-sm">
+          <p className="text-gray-400">DESTINATION:</p>
+          <p className="text-white">{formatCoordinates(selectedDestination.latitude, selectedDestination.longitude)}</p>
+        </div>
+      )}
 
       {/* Mode buttons */}
       <div className="mb-4">
@@ -103,9 +120,14 @@ const ControlPanel: React.FC = () => {
             View
           </button>
           <button
-            onClick={() => setMapMode("ROUTE")}
+            onClick={() => !isRoutePlanningDisabled && setMapMode("ROUTE")}
+            disabled={isRoutePlanningDisabled}
             className={`p-2 rounded-md flex flex-col items-center justify-center text-xs ${
-              mapMode === "ROUTE" ? "bg-blue-700" : "bg-gray-700 hover:bg-gray-600"
+              mapMode === "ROUTE" || mapMode === "CHOOSING_ROUTE"
+                ? "bg-blue-700"
+                : isRoutePlanningDisabled
+                ? "bg-gray-700 opacity-50 cursor-not-allowed"
+                : "bg-gray-700 hover:bg-gray-600"
             }`}
           >
             <RouteIcon size={20} className="mb-1" />
@@ -131,6 +153,55 @@ const ControlPanel: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Change Destination button - shown if destination exists and mission not started */}
+      {selectedDestination && !isRoutePlanningDisabled && (
+        <div className="mb-4">
+          <button
+            onClick={handleChangeDestination}
+            className="w-full p-3 rounded-md bg-purple-600 hover:bg-purple-700 text-white font-medium flex items-center justify-center"
+          >
+            <Target className="mr-2" />
+            Change Destination
+          </button>
+        </div>
+      )}
+
+      {/* Start Over button - completely reset route planning when there's existing data */}
+      {hasRoutePlanningData && !isRoutePlanningDisabled && (
+        <div className="mb-4">
+          <button
+            onClick={resetRouteData}
+            className="w-full p-3 rounded-md bg-gray-600 hover:bg-gray-700 text-white font-medium flex items-center justify-center"
+          >
+            <RotateCcw className="mr-2" />
+            Start Over
+          </button>
+        </div>
+      )}
+
+      {/* Route selection button - show when routes are available and mission is not active or paused */}
+      {routes.length > 1 && mapMode !== "CHOOSING_ROUTE" && !isRoutePlanningDisabled && (
+        <div className="mb-4">
+          <button
+            onClick={startRouteSelection}
+            className="w-full p-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium flex items-center justify-center"
+          >
+            <Navigation className="mr-2" />
+            Choose Different Route
+          </button>
+        </div>
+      )}
+
+      {/* Show message when route selection is disabled during active/paused mission */}
+      {routes.length > 1 && mapMode !== "CHOOSING_ROUTE" && isRoutePlanningDisabled && (
+        <div className="mb-4">
+          <div className="w-full p-3 rounded-md bg-gray-800 text-gray-400 font-medium flex items-center justify-center border border-gray-700">
+            <Navigation className="mr-2 text-gray-500" />
+            Route changes locked during mission
+          </div>
+        </div>
+      )}
 
       {/* Threat level selector (only visible in DRAW_THREAT mode) */}
       {mapMode === "DRAW_THREAT" && (
@@ -164,7 +235,7 @@ const ControlPanel: React.FC = () => {
           )}
         </div>
       )}
-      
+
       {/* Enemy type selector (only visible in ADD_ENEMY mode) */}
       {mapMode === "ADD_ENEMY" && (
         <div className="mb-4">
@@ -173,9 +244,7 @@ const ControlPanel: React.FC = () => {
             <button
               onClick={() => setSelectedEnemyType(EnemyType.PERSON)}
               className={`p-2 rounded-md flex flex-col items-center justify-center text-xs ${
-                selectedEnemyType === EnemyType.PERSON
-                  ? "bg-blue-700"
-                  : "bg-gray-700 hover:bg-gray-600"
+                selectedEnemyType === EnemyType.PERSON ? "bg-blue-700" : "bg-gray-700 hover:bg-gray-600"
               }`}
             >
               <Users size={20} className="mb-1" />
@@ -184,9 +253,7 @@ const ControlPanel: React.FC = () => {
             <button
               onClick={() => setSelectedEnemyType(EnemyType.VEHICLE)}
               className={`p-2 rounded-md flex flex-col items-center justify-center text-xs ${
-                selectedEnemyType === EnemyType.VEHICLE
-                  ? "bg-blue-700"
-                  : "bg-gray-700 hover:bg-gray-600"
+                selectedEnemyType === EnemyType.VEHICLE ? "bg-blue-700" : "bg-gray-700 hover:bg-gray-600"
               }`}
             >
               <Truck size={20} className="mb-1" />
@@ -195,45 +262,32 @@ const ControlPanel: React.FC = () => {
             <button
               onClick={() => setSelectedEnemyType(EnemyType.TANK)}
               className={`p-2 rounded-md flex flex-col items-center justify-center text-xs ${
-                selectedEnemyType === EnemyType.TANK
-                  ? "bg-blue-700"
-                  : "bg-gray-700 hover:bg-gray-600"
+                selectedEnemyType === EnemyType.TANK ? "bg-blue-700" : "bg-gray-700 hover:bg-gray-600"
               }`}
             >
               <TankIcon size={20} className="mb-1" />
               Tank
             </button>
           </div>
-          
+
           <div className="mt-2 text-xs text-gray-400">
             <p>Select an enemy type and click on the map to place it.</p>
           </div>
         </div>
       )}
-      
-      {/* Mission control */}
-      <div className="mt-4">
-        <p className="text-gray-400 mb-2">MISSION CONTROL:</p>
-        <div className="grid grid-cols-1 gap-2">
-          {!isMissionActive ? (
-            <button
-              onClick={handleStartMission}
-              disabled={!currentRoute}
-              className={`p-3 rounded-md flex items-center justify-center ${
-                currentRoute ? "bg-green-600 hover:bg-green-700" : "bg-gray-700 cursor-not-allowed"
-              }`}
-            >
-              <PlayCircle size={20} className="mr-2" />
-              Start Mission
-            </button>
-          ) : (
-            <button onClick={handleEndMission} className="p-3 rounded-md flex items-center justify-center bg-red-600 hover:bg-red-700">
-              <PauseCircle size={20} className="mr-2" />
-              End Mission
-            </button>
-          )}
+
+      {/* Show route selection instructions when in choosing route mode */}
+      {mapMode === "CHOOSING_ROUTE" && (
+        <div className="mb-4 border-t border-b border-gray-700 py-2 my-2">
+          <p className="text-green-400 font-medium flex items-center justify-center">
+            <Navigation className="mr-2" />
+            Choose a route on the map
+          </p>
+          <p className="text-xs text-gray-300 text-center mt-1">Click on your preferred route to select it</p>
         </div>
-      </div>
+      )}
+
+      {/* Mission control section moved to map top-center */}
 
       {/* Usage instructions */}
       <div className="mt-4 text-xs text-gray-400 border-t border-gray-700 pt-2">

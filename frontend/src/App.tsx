@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import MapContainer from "./components/map/MapContainer";
+import EnhancedMapContainer from "./components/map/EnhancedMapContainer";
 import ControlPanel from "./components/ui/controlPanel/ControlPanel";
 import StatusBar from "./components/ui/statusBar/StatusBar";
 import NotificationManager from "./components/ui/notifications/NotificationManager";
@@ -52,7 +52,7 @@ function App() {
   return (
     <div className="relative w-full h-screen overflow-hidden">
       {/* Main map container */}
-      <MapContainer />
+      <EnhancedMapContainer />
 
       {/* Control panel */}
       <ControlPanel />

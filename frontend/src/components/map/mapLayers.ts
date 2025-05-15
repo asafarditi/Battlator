@@ -2,14 +2,41 @@ import { ThreatLevel } from "../../types";
 
 /**
  * Get the layer style for a route
+ * @param isSelected - Whether this route is currently selected
+ * @param index - The index of the route for color variation
  */
-export const getRouteLayer = () => ({
-  id: "route-layer",
+export const getRouteLayer = (isSelected = false, index = 0) => {
+  // Color variations for different routes
+  const routeColors = ["#3070FF", "#30B0FF", "#6A30FF"];
+  const color = routeColors[index % routeColors.length];
+
+  return {
+    id: "route-layer",
+    type: "line",
+    paint: {
+      "line-color": isSelected ? "#00C853" : color,
+      "line-width": isSelected ? 9 : 7,
+      "line-opacity": isSelected ? 0.9 : 0.7,
+      "line-blur": isSelected ? 0 : 1,
+      "line-cap": "round",
+      "line-join": "round",
+    },
+  };
+};
+
+/**
+ * Get the glow effect layer for the selected route
+ */
+export const getRouteGlowLayer = () => ({
+  id: "route-glow-layer",
   type: "line",
   paint: {
-    "line-color": "#3070FF",
-    "line-width": 4,
-    "line-opacity": 0.8,
+    "line-color": "rgba(0, 200, 83, 0.5)",
+    "line-width": 14,
+    "line-blur": 8,
+    "line-opacity": 0.6,
+    "line-cap": "round",
+    "line-join": "round",
   },
 });
 

@@ -38,4 +38,4 @@ export type WebSocketMessage =
       };
     };
 
-export type MapMode = "VIEW" | "DRAW_THREAT" | "ROUTE" | "ADD_ENEMY";
+export type MapMode = "VIEW" | "DRAW_THREAT" | "ROUTE" | "CHOOSING_ROUTE" | "ADD_ENEMY";

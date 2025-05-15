@@ -12,7 +12,7 @@ from logging import getLogger
 logger = getLogger(__name__)
 router = APIRouter()
 pathfinder = PathFinderService()
-routes: list[Route] = []
+routes: dict[str, Route] = {}
 
 class StartMissionRequest(BaseModel):
     routeId: str
@@ -29,7 +29,7 @@ async def plan_route(request: RouteRequest):
     path_points = pathfinder.find_paths(start, end)
     print(len(path_points))
     
-    new_routes = []
+    new_routes = {}
     for i, path in enumerate(path_points):
         path_coords = [PathPoint(coordinates=Coordinates(lat=pt[1], lng=pt[0], alt=1.1), threatScore=0.0) for pt in path]
         route = Route(
@@ -38,11 +38,11 @@ async def plan_route(request: RouteRequest):
             distance=0.0,  # Optionally calculate distance
             riskScore=0.0  # Optionally calculate risk
         )
-        new_routes.append(route)
+        new_routes[route.id] = route
 
     global routes
     routes = new_routes
-    return RouteResponse(routes=routes)
+    return RouteResponse(routes=list(routes.values()))
 
 
 @router.post("/api/calculate-route")
@@ -61,7 +61,7 @@ async def api_calculate_route(route_request: RouteRequest):
 async def start_mission(request: StartMissionRequest):
     # Start the movement in the background
     print(f"Starting mission with route {request.routeId}")
-    selected_route = next((route for route in routes if route.id == request.routeId), None)
+    selected_route = routes.get(request.routeId)
     if not selected_route:
         return {"error": "Route not found"}
     asyncio.create_task(start_movement(selected_route))
