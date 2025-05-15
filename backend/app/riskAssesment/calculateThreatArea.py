@@ -4,7 +4,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from shapely.geometry import Polygon, Point, mapping, MultiPolygon
 from typing import List, Dict, Tuple
-from app.models import Coordinates, ThreatArea, Enemy
+from app.models import Coordinates, EnemyType, ThreatArea, Enemy
 import math
 
 # Configurable threat level thresholds
@@ -221,7 +221,7 @@ def calculate_effective_range(enemy: Enemy) -> float:
         "Machine Guns": 800.0,
         "Anti-Tank Missiles": 4000.0
     }
-    
+
     # Get the maximum range from enemy capabilities
     max_range = 0.0
     for weapon in enemy.capability.keys():
@@ -233,6 +233,16 @@ def calculate_effective_range(enemy: Enemy) -> float:
 def process_enemy_threat(enemy: Enemy) -> Enemy:
     """Process enemy entity and calculate its risk potential and effective range."""
     # Calculate effective range and update capability values
+    
+        
+    if enemy.type == EnemyType.PERSON:
+        enemy.capability["Assault Rifles"] = 100.0
+    elif enemy.type == EnemyType.VEHICLE:
+        enemy.capability["Sniper Rifles"] = 1000.0
+    elif enemy.type == EnemyType.TANK:
+        enemy.capability["Anti-Tank Missiles"] = 10000.0
+    
+    
     for weapon in enemy.capability.keys():
         enemy.capability[weapon] = calculate_effective_range(enemy)
     

@@ -1,11 +1,15 @@
+from typing import List
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.models import Coordinates, PathPoint, ThreatArea, Route, Enemy, RouteRequest, RouteResponse
 from app.services.movement_service import add_new_enemy, calculate_route, start_movement, stop_movement, get_current_position
 from app.services import websocket_service
+from app.riskAssesment.calculateThreatArea import process_enemy_threat, analyze_threat_areas
 import asyncio
 from app.services.path_finder_service import PathFinderService
 from pydantic import BaseModel
+from logging import getLogger
 
+logger = getLogger(__name__)
 router = APIRouter()
 pathfinder = PathFinderService()
 routes: list[Route] = []
@@ -83,8 +87,35 @@ async def add_single_enemy(enemy_request: Enemy):
     """
     Add a single-point enemy (person, vehicle, or tank) to the map
     """
+    # Process the enemy threat first
+    processed_enemy = process_enemy_threat(enemy_request)
+    
+    # Analyze threat areas with the processed enemy
+    threat_areas : List[ThreatArea] = analyze_threat_areas([processed_enemy]) 
+    
+    # Print the analysis results
+    print("Threat Area Analysis Results:")
+    print("=" * 50)
+    
+    for area in threat_areas:
+        print(f"\nThreat Area ID: {area.id}")
+        print(f"Risk Level: {area.riskLevel}")
+        print(f"Description: {area.description}")
+        print(f"Number of enemies: {len(area.enemies)}")
+        
+        print("\nPolygon Coordinates (sample):")
+        for point in area.polygon[:3]:  # Print just first few coordinates to avoid overwhelming output
+            print(f"  Lat: {point.lat}, Lng: {point.lng}")
+            
+        print("\nEnemy Units in Area:")
+        for enemy in area.enemies:
+            print(f"- {enemy.type} unit with capabilities:")
+            for weapon, range in enemy.capability.items():
+                print(f"  * {weapon}: {range}m range")
+        print("-" * 50)
+    
     # Reuse the existing add_new_enemy function
-    return {"success": add_new_enemy(enemy_request)}
+    return {"success": add_new_enemy(processed_enemy)}
 
 @router.websocket("/ws/position")
 async def position_websocket(websocket: WebSocket):
