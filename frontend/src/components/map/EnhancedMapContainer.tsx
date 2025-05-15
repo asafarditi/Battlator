@@ -851,7 +851,7 @@ const EnhancedMapContainer: React.FC = () => {
                 
                 // Check for intersection
                 const intersection = turf.booleanIntersects(enemyBuffer, routeLine);
-                
+                console.log("Intersection:", intersection);
                 if (intersection) {
                   // Format enemy type for display
                   const formattedEnemyType = enemy.type.charAt(0).toUpperCase() + enemy.type.slice(1).toLowerCase();
@@ -866,8 +866,6 @@ const EnhancedMapContainer: React.FC = () => {
                   // Set enemy type for recalculation dialog
                   setRecalculationEnemyType(formattedEnemyType);
                   
-                  // Show confirmation dialog
-                  setShowRecalculationConfirm(true);
                   
                   // Add notification
                   addNotification({
