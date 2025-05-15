@@ -8,6 +8,7 @@ import { FriendlyMarker } from "./FriendlyMarker";
 import { DestinationMarker } from "./DestinationMarker";
 import { getRouteLayer, getRouteGlowLayer, getThreatZoneLayer } from "./mapLayers";
 import { Position as MapPosition } from "geojson";
+// @ts-ignore: turf.js typing issue
 import * as turf from "@turf/turf";
 import { User, Truck, AlertTriangle, Navigation, Clock, PlayCircle, PauseCircle, X, Target } from "lucide-react";
 import RouteCountdown from "../ui/RouteCountdown";
@@ -188,7 +189,10 @@ const EnhancedMapContainer: React.FC = () => {
     } else if (mapMode === "ADD_ENEMY") {
       // Place an enemy on the map
       try {
+        console.log('Adding enemy at position:', clickedPosition);
         const response = await api.addSingleEnemy(clickedPosition, selectedEnemyType);
+        console.log('Response from API:', response);
+        
         if (response.success) {
           const newEnemy: PlacedEnemy = {
             id: `enemy-${Date.now()}`,
@@ -196,6 +200,18 @@ const EnhancedMapContainer: React.FC = () => {
             type: selectedEnemyType,
           };
           setPlacedEnemies((prev) => [...prev, newEnemy]);
+          
+          // Process and add threat areas returned from the backend
+          if (response.threatAreas && response.threatAreas.length > 0) {
+            console.log('Received threat areas from backend:', response.threatAreas);
+            // Add each threat area to the store
+            response.threatAreas.forEach(threatArea => {
+              console.log('Adding threat area to map store:', threatArea);
+              addThreatZone(threatArea.coordinates, threatArea.level);
+            });
+          } else {
+            console.log('No threat areas received from backend');
+          }
         }
       } catch (error) {
         console.error(`Error adding ${selectedEnemyType} enemy:`, error);
@@ -364,23 +380,82 @@ const EnhancedMapContainer: React.FC = () => {
         })}
 
         {/* Threat zones */}
-        {threatZones.map((zone) => (
-          <Source
-            key={zone.id}
-            id={`threat-zone-${zone.id}`}
-            type="geojson"
-            data={{
-              type: "Feature",
-              properties: {},
-              geometry: {
-                type: "Polygon",
-                coordinates: zone.coordinates,
-              },
-            }}
-          >
-            <Layer {...({ ...getThreatZoneLayer(zone.level), id: `threat-zone-layer-${zone.id}` } as any)} />
-          </Source>
-        ))}
+        {threatZones.map((zone) => {
+          console.log('Rendering threat zone:', zone);
+          console.log('Zone coordinates type:', typeof zone.coordinates);
+          console.log('Zone coordinates length:', zone.coordinates?.length);
+          
+          // Validate coordinates format
+          const coordsValid = Array.isArray(zone.coordinates) && zone.coordinates.length > 0;
+          
+          if (!coordsValid) {
+            console.error('Invalid coordinates format:', zone.coordinates);
+            return null;
+          }
+          
+          // Debug the structure of the coordinates
+          console.log('First coordinate array:', zone.coordinates[0]);
+          
+          // Get the threat zone layer style
+          const layerStyle = getThreatZoneLayer(zone.level);
+          console.log('Threat zone layer style:', layerStyle);
+          
+          // Ensure coordinates are in the proper GeoJSON format
+          // GeoJSON Polygon expects: [[[lng1, lat1], [lng2, lat2], ...]]
+          let formattedCoords = zone.coordinates;
+          
+          // If coordinates aren't properly nested, wrap them
+          if (!Array.isArray(zone.coordinates[0][0])) {
+            formattedCoords = [zone.coordinates as any];
+            console.log('Fixed coordinates format:', formattedCoords);
+          }
+          
+          // Construct the GeoJSON feature with proper coordinates
+          const geoJsonData = {
+            type: "Feature" as const,
+            properties: {},
+            geometry: {
+              type: "Polygon" as const,
+              coordinates: formattedCoords
+            }
+          };
+          
+          console.log('GeoJSON data:', JSON.stringify(geoJsonData));
+          
+          // Generate unique IDs for this threat zone's layers
+          const sourceId = `threat-zone-${zone.id}`;
+          const fillLayerId = `threat-zone-fill-${zone.id}`;
+          const lineLayerId = `threat-zone-line-${zone.id}`;
+          
+          return (
+            <Source
+              key={sourceId}
+              id={sourceId}
+              type="geojson"
+              data={geoJsonData}
+            >
+              {/* Fill layer for the threat zone */}
+              <Layer 
+                id={fillLayerId}
+                type="fill"
+                paint={{
+                  "fill-color": layerStyle.paint["fill-color"] || "rgba(255, 0, 0, 0.5)",
+                  "fill-opacity": 0.7,
+                }}
+              />
+              {/* Outline layer to make the border more visible */}
+              <Layer
+                id={lineLayerId}
+                type="line"
+                paint={{
+                  "line-color": layerStyle.paint["fill-outline-color"] || "rgba(255, 0, 0, 1.0)",
+                  "line-width": 3,
+                  "line-opacity": 1.0,
+                }}
+              />
+            </Source>
+          );
+        })}
 
         {/* Drawing line for threat zone creation */}
         {drawingCoordinates.length > 0 && (

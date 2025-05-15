@@ -115,7 +115,65 @@ async def add_single_enemy(enemy_request: Enemy):
         print("-" * 50)
     
     # Reuse the existing add_new_enemy function
-    return {"success": add_new_enemy(processed_enemy)}
+    add_new_enemy(processed_enemy)
+    
+    # Convert threat areas to a format suitable for the frontend
+    formatted_threat_areas = []
+    for area in threat_areas:
+        # Debug the polygon structure
+        print(f"\nDebugging polygon structure for area {area.id}:")
+        print(f"Polygon type: {type(area.polygon)}")
+        print(f"Polygon length: {len(area.polygon)}")
+        if area.polygon:
+            print(f"First point type: {type(area.polygon[0])}")
+            print(f"First point sample: {area.polygon[0]}")
+        
+        # Convert polygon coordinates to GeoJSON format (lng, lat)
+        # GeoJSON expects coordinates as [[[lng1, lat1], [lng2, lat2], ...]]
+        polygon_coords = [[[point.lng, point.lat] for point in area.polygon]]
+        
+        # Debug the converted coordinates
+        print(f"Converted polygon coordinates structure:")
+        print(f"- Type: {type(polygon_coords)}")
+        print(f"- Levels: {len(polygon_coords)} > {len(polygon_coords[0]) if polygon_coords else 0}")
+        print(f"- Sample: {polygon_coords[0][:2] if polygon_coords and polygon_coords[0] else []}")
+        
+        # Debug the risk level value
+        print(f"Original risk level: {area.riskLevel}, type: {type(area.riskLevel)}")
+        
+        # Determine risk level - ThreatArea uses Literal['high', 'medium', 'low']
+        # Convert to frontend's ThreatLevel format which is medThreat or highThreat
+        if area.riskLevel == 'high':
+            risk_level = "highThreat"
+        elif area.riskLevel == 'medium':
+            risk_level = "medThreat"
+        else:
+            risk_level = "medThreat"  # Default to medium for 'low' or any other value
+        
+        print(f"Formatted risk level: {risk_level}")
+        
+        formatted_threat_areas.append({
+            "id": area.id,
+            "coordinates": polygon_coords,
+            "level": risk_level,
+            "description": area.description
+        })
+    
+    # Log the complete formatted response
+    print("\nFormatted Threat Areas for Frontend:")
+    for area in formatted_threat_areas:
+        print(f"- ID: {area['id']}")
+        print(f"  Level: {area['level']}")
+        print(f"  Coordinates structure: {type(area['coordinates'])}, Length: {len(area['coordinates'])}")
+        if area['coordinates']:
+            print(f"  First ring: {type(area['coordinates'][0])}, Length: {len(area['coordinates'][0])}")
+            if area['coordinates'][0]:
+                print(f"  First point: {area['coordinates'][0][0]}")
+    
+    return {
+        "success": True,
+        "threatAreas": formatted_threat_areas
+    }
 
 @router.websocket("/ws/position")
 async def position_websocket(websocket: WebSocket):

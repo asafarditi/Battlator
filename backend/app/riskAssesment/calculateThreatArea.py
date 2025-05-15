@@ -40,8 +40,11 @@ def create_threat_circle(center: Coordinates, radius: float, points: int = 32) -
     Returns:
         List of coordinates forming the circle
     """
+    # Make the circle smaller by dividing radius by 10
+    adjusted_radius = radius / 15.0
+    
     # Convert radius from meters to degrees
-    radius_deg = radius / 111111.0
+    radius_deg = adjusted_radius / 111111.0
     
     circle_points = []
     for i in range(points):
@@ -219,7 +222,7 @@ def calculate_effective_range(enemy: Enemy) -> float:
         "Mortars - Medium (81mm)": 5600.0,
         "Mortars - Heavy (120mm)": 7200.0,
         "Machine Guns": 800.0,
-        "Anti-Tank Missiles": 4000.0
+        "Anti-Tank Missiles": 2900.0
     }
 
     # Get the maximum range from enemy capabilities

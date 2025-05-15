@@ -133,7 +133,7 @@ export const api = {
   /**
    * Adds a single point enemy with a specific type (person, vehicle, tank)
    */
-  addSingleEnemy: async (position: Position, type: EnemyType): Promise<{ success: boolean }> => {
+  addSingleEnemy: async (position: Position, type: EnemyType): Promise<{ success: boolean, threatAreas?: ThreatZone[] }> => {
     // Define capabilities and risk based on enemy type
     const enemyConfig = {
       [EnemyType.PERSON]: {
@@ -174,6 +174,50 @@ export const api = {
       throw new Error(`Failed to add ${type} enemy`);
     }
 
-    return response.json();
+    const data = await response.json();
+    
+    // Debugging
+    console.log('API response for addSingleEnemy:', data);
+    
+    // Convert the threat areas from the backend to our ThreatZone type
+    const threatAreas = data.threatAreas?.map((area: any) => {
+      console.log('Processing threat area from API:', area);
+      
+      // Validate the coordinates format
+      if (!area.coordinates || !Array.isArray(area.coordinates)) {
+        console.error('Missing or invalid coordinates in threat area:', area);
+        return null;
+      }
+      
+      // Ensure level is a valid ThreatLevel enum value
+      const level = area.level === "highThreat" || area.level === "medThreat" 
+        ? area.level 
+        : "medThreat"; // Default to medium if invalid
+      
+      // Log the detailed structure of coordinates to troubleshoot
+      console.log('Coordinates structure:');
+      console.log('- Type:', typeof area.coordinates);
+      console.log('- Is Array:', Array.isArray(area.coordinates));
+      console.log('- Length:', area.coordinates.length);
+      if (area.coordinates.length > 0) {
+        console.log('- First element type:', typeof area.coordinates[0]);
+        console.log('- First element is Array:', Array.isArray(area.coordinates[0]));
+        console.log('- First element sample:', JSON.stringify(area.coordinates[0]).substring(0, 100));
+      }
+      
+      return {
+        id: area.id || generateId(),
+        coordinates: area.coordinates,
+        level: level as ThreatLevel,
+      };
+    }).filter(Boolean) || [];
+    
+    // Log the processed threat areas
+    console.log('Processed threat areas:', threatAreas);
+    
+    return {
+      success: data.success,
+      threatAreas
+    };
   },
 };

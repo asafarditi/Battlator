@@ -46,20 +46,22 @@ export const getRouteGlowLayer = () => ({
 export const getThreatZoneLayer = (level: ThreatLevel) => {
   // Colors based on threat level
   const colors = {
-    [ThreatLevel.MEDIUM]: "rgba(255, 170, 0, 0.35)", // Orange for medium threat
-    [ThreatLevel.HIGH]: "rgba(255, 50, 50, 0.35)", // Red for high threat
+    [ThreatLevel.MEDIUM]: "rgba(255, 170, 0, 0.5)", // Orange for medium threat - increased opacity
+    [ThreatLevel.HIGH]: "rgba(255, 50, 50, 0.5)", // Red for high threat - increased opacity
   };
 
   const borderColors = {
-    [ThreatLevel.MEDIUM]: "rgba(255, 170, 0, 0.8)",
-    [ThreatLevel.HIGH]: "rgba(255, 50, 50, 0.8)",
+    [ThreatLevel.MEDIUM]: "rgba(255, 170, 0, 1.0)", // Fully opaque borders
+    [ThreatLevel.HIGH]: "rgba(255, 50, 50, 1.0)", // Fully opaque borders
   };
 
+  // Create a more visible fill layer
   return {
     id: `threat-zone-layer-${level}`,
     type: "fill",
     paint: {
       "fill-color": colors[level],
+      "fill-opacity": 0.6,
       "fill-outline-color": borderColors[level],
     },
   };

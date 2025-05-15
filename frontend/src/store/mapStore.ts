@@ -143,7 +143,10 @@ export const useMapStore = create<MapState>((set, get) => ({
       mapMode: "ROUTE", // Switch to route planning mode
     }),
 
-  addThreatZone: (coordinates, level) =>
+  addThreatZone: (coordinates, level) => {
+    console.log('Adding threat zone to store with coordinates:', coordinates);
+    console.log('Threat level:', level);
+    
     set((state) => ({
       threatZones: [
         ...state.threatZones,
@@ -153,7 +156,8 @@ export const useMapStore = create<MapState>((set, get) => ({
           level,
         },
       ],
-    })),
+    }));
+  },
 
   updateDrawingCoordinates: (coordinates) => set({ drawingCoordinates: coordinates }),
   clearDrawingCoordinates: () => set({ drawingCoordinates: [] }),
