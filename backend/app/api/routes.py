@@ -27,15 +27,24 @@ async def plan_route(request: RouteRequest):
     start = (request.start.lng, request.start.lat)
     end = (request.end.lng, request.end.lat)
     path_points = pathfinder.find_paths(start, end)
-    print(len(path_points))
     
     new_routes = {}
     for i, path in enumerate(path_points):
         path_coords = [PathPoint(coordinates=Coordinates(lat=pt[1], lng=pt[0], alt=1.1), threatScore=0.0) for pt in path]
+        
+        # Calculate total distance by summing distances between consecutive points
+        total_distance = 0
+        for i in range(len(path_coords)-1):
+            p1 = path_coords[i].coordinates
+            p2 = path_coords[i+1].coordinates
+            # Calculate distance using Euclidean distance formula
+            dist = ((p2.lat - p1.lat)**2 + (p2.lng - p1.lng)**2)**0.5
+            total_distance += dist
+            
         route = Route(
             id=f"generated-route-{i}",
             path=path_coords,
-            distance=0.0,  # Optionally calculate distance
+            distance=total_distance,
             riskScore=0.0  # Optionally calculate risk
         )
         new_routes[route.id] = route
@@ -98,21 +107,8 @@ async def add_single_enemy(enemy_request: Enemy):
     print("=" * 50)
     
     for area in threat_areas:
-        print(f"\nThreat Area ID: {area.id}")
-        print(f"Risk Level: {area.riskLevel}")
-        print(f"Description: {area.description}")
-        print(f"Number of enemies: {len(area.enemies)}")
-        
-        print("\nPolygon Coordinates (sample):")
-        for point in area.polygon[:3]:  # Print just first few coordinates to avoid overwhelming output
-            print(f"  Lat: {point.lat}, Lng: {point.lng}")
-            
-        print("\nEnemy Units in Area:")
-        for enemy in area.enemies:
-            print(f"- {enemy.type} unit with capabilities:")
-            for weapon, range in enemy.capability.items():
-                print(f"  * {weapon}: {range}m range")
-        print("-" * 50)
+        length = pathfinder.add_polygon(area.polygon, area.riskLevel)
+        print(f"length {length}")
     
     # Reuse the existing add_new_enemy function
     add_new_enemy(processed_enemy)
