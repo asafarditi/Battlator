@@ -173,6 +173,11 @@ def add_new_enemy(new_enemy: Enemy):
     # updated_routes = add_new_enemy_to_route(new_enemy)
     #websocket_service.broadcast({"updated_routes": updated_routes}) 
     return True 
+
+def get_all_enemies():
+    """Get the list of enemies"""
+    global enemies
+    return enemies
     
         
         

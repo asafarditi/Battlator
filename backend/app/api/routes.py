@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.models import Coordinates, PathPoint, ThreatArea, Route, Enemy, RouteRequest, RouteResponse
-from app.services.movement_service import add_new_enemy, calculate_route, start_movement, stop_movement, get_current_position
+from app.services.movement_service import add_new_enemy, calculate_route, start_movement, stop_movement, get_current_position, get_all_enemies
 from app.services import websocket_service
 from app.riskAssesment.calculateThreatArea import process_enemy_threat, analyze_threat_areas
 import asyncio
@@ -13,6 +13,8 @@ logger = getLogger(__name__)
 router = APIRouter()
 pathfinder = PathFinderService()
 routes: dict[str, Route] = {}
+
+formatted_threat_areas = []
 
 class StartMissionRequest(BaseModel):
     routeId: str
@@ -96,6 +98,7 @@ async def add_single_enemy(enemy_request: Enemy):
     """
     Add a single-point enemy (person, vehicle, or tank) to the map
     """
+    global formatted_threat_areas
     # Process the enemy threat first
     processed_enemy = process_enemy_threat(enemy_request)
     
@@ -114,7 +117,7 @@ async def add_single_enemy(enemy_request: Enemy):
     add_new_enemy(processed_enemy)
     
     # Convert threat areas to a format suitable for the frontend
-    formatted_threat_areas = []
+    new_formatted_threat_areas = []
     for area in threat_areas:
         # Debug the polygon structure
         print(f"\nDebugging polygon structure for area {area.id}:")
@@ -148,16 +151,19 @@ async def add_single_enemy(enemy_request: Enemy):
         
         print(f"Formatted risk level: {risk_level}")
         
-        formatted_threat_areas.append({
+        new_formatted_threat_areas.append({
             "id": area.id,
             "coordinates": polygon_coords,
             "level": risk_level,
             "description": area.description
         })
     
+    # Add these threat areas to the global list
+    formatted_threat_areas.extend(new_formatted_threat_areas)
+    
     # Log the complete formatted response
     print("\nFormatted Threat Areas for Frontend:")
-    for area in formatted_threat_areas:
+    for area in new_formatted_threat_areas:
         print(f"- ID: {area['id']}")
         print(f"  Level: {area['level']}")
         print(f"  Coordinates structure: {type(area['coordinates'])}, Length: {len(area['coordinates'])}")
@@ -168,8 +174,54 @@ async def add_single_enemy(enemy_request: Enemy):
     
     return {
         "success": True,
-        "threatAreas": formatted_threat_areas
+        "threatAreas": new_formatted_threat_areas
     }
+
+@router.get("/api/enemies")
+async def get_enemies():
+    enemies = get_all_enemies()
+    
+    # Convert enemies to a format suitable for the frontend
+    formatted_enemies = []
+    for enemy in enemies:
+        formatted_enemies.append({
+            "id": enemy.id,
+            "type": enemy.type,
+            "location": [{"lat": loc.lat, "lng": loc.lng, "alt": loc.alt} for loc in enemy.location],
+            "capability": enemy.capability,
+            "risk_potential": enemy.risk_potential
+        })
+    
+    return {"enemies": formatted_enemies}
+
+@router.get("/api/threat-areas")
+async def get_threat_areas():
+    """
+    Get all threat areas
+    """
+    global formatted_threat_areas
+    
+    # Return a copy of the threat areas to ensure thread safety
+    response_data = []
+    for area in formatted_threat_areas:
+        # Create a copy of each threat area
+        response_data.append({
+            "id": area["id"],
+            "coordinates": area["coordinates"],
+            "level": area["level"],
+            "description": area.get("description", "")
+        })
+    
+    return {"threatAreas": response_data}
+
+@router.post("/api/reset-threat-areas")
+async def reset_threat_areas():
+    """
+    Reset (clear) all threat areas
+    """
+    global formatted_threat_areas
+    formatted_threat_areas = []
+    return {"success": True, "message": "All threat areas have been cleared"}
 
 @router.websocket("/ws/position")
 async def position_websocket(websocket: WebSocket):

@@ -13,7 +13,83 @@ export enum EnemyType {
   TANK = "tank",
 }
 
+export interface ApiEnemy {
+  id: string;
+  type: string;
+  location: { lat: number; lng: number; alt?: number }[];
+  capability: { [key: string]: number };
+  risk_potential: number;
+}
+
+export interface ApiThreatArea {
+  id: string;
+  coordinates: number[][][];
+  level: string;
+  description: string;
+}
+
 export const api = {
+  /**
+   * Fetches all enemies from the backend
+   */
+  fetchEnemies: async (): Promise<ApiEnemy[]> => {
+    try {
+      const response = await fetch(`${api_path}/api/enemies`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch enemies");
+      }
+      const data = await response.json();
+      console.log('Fetched enemies from backend:', data);
+      return data.enemies || [];
+    } catch (error) {
+      console.error("Error fetching enemies:", error);
+      return [];
+    }
+  },
+
+  /**
+   * Fetches all threat areas from the backend
+   */
+  fetchThreatAreas: async (): Promise<ApiThreatArea[]> => {
+    try {
+      const response = await fetch(`${api_path}/api/threat-areas`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch threat areas");
+      }
+      const data = await response.json();
+      console.log('Fetched threat areas from backend:', data);
+      return data.threatAreas || [];
+    } catch (error) {
+      console.error("Error fetching threat areas:", error);
+      return [];
+    }
+  },
+
+  /**
+   * Resets (clears) all threat areas in the backend
+   */
+  resetThreatAreas: async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await fetch(`${api_path}/api/reset-threat-areas`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to reset threat areas");
+      }
+      
+      const data = await response.json();
+      console.log('Reset threat areas response:', data);
+      return data;
+    } catch (error) {
+      console.error("Error resetting threat areas:", error);
+      return { success: false, message: "Failed to reset threat areas" };
+    }
+  },
+
   /**
    * Plans a route between two points
    */
@@ -219,5 +295,36 @@ export const api = {
       success: data.success,
       threatAreas
     };
+  },
+  
+  /**
+   * Fetches the current position of the blue force (user)
+   */
+  fetchCurrentPosition: async (): Promise<Position | null> => {
+    try {
+      const response = await fetch(`${api_path}/api/blue-force-position`);
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch current position");
+      }
+      
+      const data = await response.json();
+      
+      // Check if we have an error in the response
+      if (data.error) {
+        console.log("No active position available:", data.error);
+        return null;
+      }
+      
+      // Return position in our app's format
+      return {
+        latitude: data.lat,
+        longitude: data.lng,
+        altitude: data.alt || 0,
+      };
+    } catch (error) {
+      console.error("Error fetching current position:", error);
+      return null;
+    }
   },
 };

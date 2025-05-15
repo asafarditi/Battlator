@@ -2,8 +2,10 @@ import React, { useEffect, useRef, useState } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useMapStore } from "../../store/mapStore";
+import { useNotificationStore } from "../../store/notificationStore";
 import { ThreatZone, Position, Route, MapMode, ThreatLevel } from "../../types";
-import { api, EnemyType } from "../../services/api";
+import { api, EnemyType, ApiEnemy, ApiThreatArea } from "../../services/api";
+import { api as apiService } from "../../services/api";
 import { FriendlyMarker } from "./FriendlyMarker";
 import { DestinationMarker } from "./DestinationMarker";
 import { getRouteLayer, getRouteGlowLayer, getThreatZoneLayer } from "./mapLayers";
@@ -23,10 +25,11 @@ import {
   Crosshair,
   Loader,
   RefreshCw,
+  Zap,
+  Trash2,
 } from "lucide-react";
 import RouteCountdown from "../ui/RouteCountdown";
 import { websocketService } from "../../services/websocket";
-import { useNotificationStore } from "../../store/notificationStore";
 
 // Mapbox API key from the requirements
 const MAPBOX_TOKEN = "pk.eyJ1IjoiYW10cnRtIiwiYSI6ImNrcWJzdG41aTBsbHEyb2sxeTdsa2FkOG4ifQ.bmaBLt4tVWrM4CVr5DLVYQ";
@@ -120,6 +123,7 @@ const EnhancedMapContainer: React.FC = () => {
     selectedThreatLevel,
     selectedEnemyType,
     setSelectedDestination,
+    setCurrentPosition,
     setCurrentRoute,
     addRoute,
     addThreatZone,
@@ -144,20 +148,33 @@ const EnhancedMapContainer: React.FC = () => {
   // Access notification store
   const { addNotification } = useNotificationStore();
 
-  // State for placed enemies
+  // State for placed enemies (manual placement)
   const [placedEnemies, setPlacedEnemies] = useState<PlacedEnemy[]>([]);
-  // State for tracking if follow mode is enabled
-  const [followMode, setFollowMode] = useState<boolean>(true);
-  // Add state for route planning progress
-  const [isRoutePlanning, setIsRoutePlanning] = useState<boolean>(false);
-
-  // State to track the selected route letter (A, B, C, etc.)
-  const [selectedRouteLetter, setSelectedRouteLetter] = useState<string>("");
-
+  
+  // State for backend enemies (from polling)
+  const [backendEnemies, setBackendEnemies] = useState<ApiEnemy[]>([]);
+  
+  // State for backend threat areas (from polling)
+  const [backendThreatAreas, setBackendThreatAreas] = useState<ApiThreatArea[]>([]);
+  
+  // Track existing enemy IDs to detect new enemies
+  const [knownEnemyIds, setKnownEnemyIds] = useState<Set<string>>(new Set());
+  
+  // Track existing threat area IDs to detect new threat areas
+  const [knownThreatAreaIds, setKnownThreatAreaIds] = useState<Set<string>>(new Set());
+  
   // Add state for route recalculation confirmation
   const [showRecalculationConfirm, setShowRecalculationConfirm] = useState<boolean>(false);
   const [recalculationEnemyType, setRecalculationEnemyType] = useState<string>("");
   const [pendingDestination, setPendingDestination] = useState<Position | null>(null);
+  
+  // State for tracking if follow mode is enabled
+  const [followMode, setFollowMode] = useState<boolean>(true);
+  // Add state for route planning progress
+  const [isRoutePlanning, setIsRoutePlanning] = useState<boolean>(false);
+  
+  // State to track the selected route letter (A, B, C, etc.)
+  const [selectedRouteLetter, setSelectedRouteLetter] = useState<string>("");
 
   const mapRef = useRef<any>(null);
   const [viewState, setViewState] = useState({
@@ -736,14 +753,22 @@ const EnhancedMapContainer: React.FC = () => {
   };
 
   // Get the appropriate icon component based on enemy type
-  const getEnemyIcon = (type: EnemyType) => {
-    switch (type) {
+  const getEnemyIcon = (type: string) => {
+    switch (type.toLowerCase()) {
       case EnemyType.PERSON:
+      case 'infantry':
+      case 'person':
         return <User size={24} className="text-red-500" />;
       case EnemyType.VEHICLE:
+      case 'vehicle':
         return <Truck size={28} className="text-amber-500" />;
       case EnemyType.TANK:
+      case 'tank':
         return <TankIcon size={32} className="text-red-700" />;
+      case 'sniper':
+        return <Target size={24} className="text-red-500" />;
+      case 'launcher':
+        return <Zap size={28} className="text-red-700" />;
       default:
         return <AlertTriangle size={24} className="text-white" />;
     }
@@ -759,6 +784,277 @@ const EnhancedMapContainer: React.FC = () => {
       return currentRoute ? [currentRoute] : [];
     }
   };
+
+  // Handle reset of threat areas
+  const handleResetThreatAreas = async () => {
+    try {
+      const result = await api.resetThreatAreas();
+      if (result.success) {
+        console.log('Threat areas reset successfully');
+        // Clear local threat areas immediately for better UX
+        setBackendThreatAreas([]);
+      }
+    } catch (error) {
+      console.error('Error resetting threat areas:', error);
+    }
+  };
+
+  // Poll for enemies every second
+  useEffect(() => {
+    const fetchEnemies = async () => {
+      try {
+        const enemies = await api.fetchEnemies();
+        
+        // Check for new enemies
+        const currentEnemyIds = new Set(enemies.map(enemy => enemy.id));
+        const newEnemies = enemies.filter(enemy => !knownEnemyIds.has(enemy.id));
+        
+        // If there are new enemies, add notifications
+        if (newEnemies.length > 0) {
+          // Group notifications by enemy type
+          const enemyTypeCount: Record<string, number> = {};
+          
+          newEnemies.forEach(enemy => {
+            const type = enemy.type.toLowerCase();
+            enemyTypeCount[type] = (enemyTypeCount[type] || 0) + 1;
+          });
+          
+          // Create notifications for each enemy type
+          Object.entries(enemyTypeCount).forEach(([type, count]) => {
+            const riskLevel = newEnemies.some(
+              enemy => enemy.type.toLowerCase() === type && enemy.risk_potential > 0.6
+            ) ? 'danger' : 'warning';
+            
+          });
+          
+          // For high-risk enemies, add an additional urgent notification
+          const highRiskEnemies = newEnemies.filter(enemy => enemy.risk_potential > 0.7);
+          if (highRiskEnemies.length > 0) {
+          }
+          
+          // Check if any new enemy intersects with the current route when in mission
+          if (isMissionActive && currentRoute && !showRecalculationConfirm) {
+            // Create a linestring from the route
+            const routeCoordinates = currentRoute.points.map((p) => [p.coordinates.longitude, p.coordinates.latitude]);
+            const routeLine = turf.lineString(routeCoordinates);
+
+            // Check each new enemy for intersection
+            for (const enemy of newEnemies) {
+              if (!enemy.location || enemy.location.length === 0) continue;
+              
+              try {
+                // For point enemies, check with a buffer around the point
+                const enemyPoint = turf.point([enemy.location[0].lng, enemy.location[0].lat]);
+                // Create a buffer based on the enemy's threat range or use a default
+                const bufferRadius = (enemy.capability?.range || 500) / 1000; // Convert to km
+                const enemyBuffer = turf.buffer(enemyPoint, bufferRadius, { units: 'kilometers' });
+                
+                // Check for intersection
+                const intersection = turf.booleanIntersects(enemyBuffer, routeLine);
+                
+                if (intersection) {
+                  // Format enemy type for display
+                  const formattedEnemyType = enemy.type.charAt(0).toUpperCase() + enemy.type.slice(1).toLowerCase();
+                  
+                  // Get destination from route
+                  const destination = currentRoute.points[currentRoute.points.length - 1].coordinates;
+                  
+                  if (destination) {
+                    setPendingDestination(destination);
+                  }
+                  
+                  // Set enemy type for recalculation dialog
+                  setRecalculationEnemyType(formattedEnemyType);
+                  
+                  // Show confirmation dialog
+                  setShowRecalculationConfirm(true);
+                  
+                  // Add notification
+                  addNotification({
+                    type: "danger",
+                    message: `${formattedEnemyType} detected intersecting with your route!`,
+                    duration: 5000,
+                  });
+                  
+                  // Only show dialog for the first intersection found
+                  break;
+                }
+              } catch (error) {
+                console.error('Error checking enemy intersection with route:', error);
+              }
+            }
+          }
+          
+          // Update the known enemy IDs set
+          setKnownEnemyIds(currentEnemyIds);
+        }
+        
+        // Update the enemies state
+        setBackendEnemies(enemies);
+      } catch (error) {
+        console.error('Error fetching enemies:', error);
+      }
+    };
+    
+    // Initial fetch
+    fetchEnemies();
+    
+    // Set up polling interval
+    const interval = setInterval(fetchEnemies, 1000);
+    
+    // Clean up interval on component unmount or when mission becomes inactive
+    return () => clearInterval(interval);
+  }, [knownEnemyIds, addNotification, isMissionActive, currentRoute, showRecalculationConfirm]);
+  
+  // Poll for threat areas every second
+  useEffect(() => {
+    const fetchThreatAreas = async () => {
+      try {
+        const threatAreas = await api.fetchThreatAreas();
+        
+        // Check for new threat areas
+        const currentThreatAreaIds = new Set(threatAreas.map(area => area.id));
+        const newThreatAreas = threatAreas.filter(area => !knownThreatAreaIds.has(area.id));
+        
+        // If there are new threat areas, add notifications
+        if (newThreatAreas.length > 0) {
+          // Group notifications by threat level
+          const highThreatCount = newThreatAreas.filter(area => area.level === "highThreat").length;
+          const medThreatCount = newThreatAreas.filter(area => area.level === "medThreat").length;
+          
+          // Create notifications for each threat level if there are any
+          if (highThreatCount > 0) {
+            addNotification({
+              type: 'danger',
+              message: `Warning: ${highThreatCount} new high-threat zone${highThreatCount > 1 ? 's' : ''} detected!`,
+              duration: 7000
+            });
+          }
+          
+          if (medThreatCount > 0) {
+            addNotification({
+              type: 'warning',
+              message: `Caution: ${medThreatCount} new medium-threat zone${medThreatCount > 1 ? 's' : ''} detected.`,
+              duration: 5000
+            });
+          }
+          
+          // Check if any new threat area intersects with the current route when in mission
+          if (isMissionActive && currentRoute && !showRecalculationConfirm) {
+            // Create a linestring from the route
+            const routeCoordinates = currentRoute.points.map((p) => [p.coordinates.longitude, p.coordinates.latitude]);
+            const routeLine = turf.lineString(routeCoordinates);
+
+            // Check each new threat area for intersection
+            for (const area of newThreatAreas) {
+              if (!area.coordinates || !Array.isArray(area.coordinates) || area.coordinates.length === 0) continue;
+              
+              try {
+                // Create a polygon from the threat area
+                let threatPolygon;
+                
+                // Ensure coordinates are in the proper GeoJSON format
+                let formattedCoords = area.coordinates;
+                
+                // If coordinates aren't properly nested, wrap them
+                if (!Array.isArray(area.coordinates[0][0])) {
+                  formattedCoords = [area.coordinates as any];
+                }
+                
+                threatPolygon = turf.polygon(formattedCoords);
+                
+                // Check for intersection
+                const intersection = turf.booleanIntersects(threatPolygon, routeLine);
+                
+                if (intersection) {
+                  // Format threat level for display
+                  const threatLevel = area.level === "highThreat" ? "High-threat" : "Medium-threat";
+                  
+                  // Get destination from route
+                  const destination = currentRoute.points[currentRoute.points.length - 1].coordinates;
+                  
+                  if (destination) {
+                    setPendingDestination(destination);
+                  }
+                  
+                  // Set enemy type for recalculation dialog
+                  setRecalculationEnemyType(`${threatLevel} zone`);
+                  
+                  // Show confirmation dialog
+                  setShowRecalculationConfirm(true);
+                  
+                  // Add notification
+                  addNotification({
+                    type: "danger",
+                    message: `${threatLevel} zone detected intersecting with your route!`,
+                    duration: 5000,
+                  });
+                  
+                  // Only show dialog for the first intersection found
+                  break;
+                }
+              } catch (error) {
+                console.error('Error checking threat area intersection with route:', error);
+              }
+            }
+          }
+          
+          // Update the known threat area IDs
+          setKnownThreatAreaIds(currentThreatAreaIds);
+        }
+        
+        // Update the threat areas state
+        setBackendThreatAreas(threatAreas);
+      } catch (error) {
+        console.error('Error fetching threat areas:', error);
+      }
+    };
+    
+    // Initial fetch
+    fetchThreatAreas();
+    
+    // Set up polling interval
+    const interval = setInterval(fetchThreatAreas, 1000);
+    
+    // Clean up interval on component unmount or when mission becomes inactive
+    return () => clearInterval(interval);
+  }, [knownThreatAreaIds, addNotification, isMissionActive, currentRoute, showRecalculationConfirm]);
+  
+  // Poll for current position every second during active missions
+  useEffect(() => {
+    // Only poll if mission is active
+    const fetchCurrentPosition = async () => {
+      try {
+        const position = await api.fetchCurrentPosition();
+        
+        // If we have a valid position
+        if (position) {
+          // Update position in the store
+          setCurrentPosition(position);
+          
+          // If in follow mode, update the map view
+          if (followMode) {
+            setViewState((prev) => ({
+              ...prev,
+              longitude: position.longitude,
+              latitude: position.latitude,
+            }));
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching current position:", error);
+      }
+    };
+    
+    // Initial fetch
+    fetchCurrentPosition();
+    
+    // Set up polling interval
+    const interval = setInterval(fetchCurrentPosition, 1000);
+    
+    // Clean up interval on component unmount or when mission becomes inactive
+    return () => clearInterval(interval);
+  }, [isMissionActive, followMode, setCurrentPosition, setViewState]);
 
   return (
     <div className="w-full h-screen relative">
@@ -910,6 +1206,75 @@ const EnhancedMapContainer: React.FC = () => {
           );
         })}
 
+        {/* Backend threat areas (from polling) */}
+        {backendThreatAreas.map((zone) => {
+          // Skip if coordinates are invalid
+          if (!zone.coordinates || !Array.isArray(zone.coordinates) || zone.coordinates.length === 0) {
+            return null;
+          }
+          
+          console.log('Rendering backend threat area:', zone);
+          
+          // Get threat level
+          const threatLevel = zone.level === "highThreat" ? ThreatLevel.HIGH : ThreatLevel.MEDIUM;
+          
+          // Get the threat zone layer style
+          const layerStyle = getThreatZoneLayer(threatLevel);
+          
+          // Ensure coordinates are in the proper GeoJSON format
+          let formattedCoords = zone.coordinates;
+          
+          // If coordinates aren't properly nested, wrap them
+          if (!Array.isArray(zone.coordinates[0][0])) {
+            formattedCoords = [zone.coordinates as any];
+            console.log('Fixed coordinates format:', formattedCoords);
+          }
+          
+          // Construct the GeoJSON feature
+          const geoJsonData = {
+            type: "Feature" as const,
+            properties: {},
+            geometry: {
+              type: "Polygon" as const,
+              coordinates: formattedCoords
+            }
+          };
+          
+          // Generate unique IDs
+          const sourceId = `backend-threat-zone-${zone.id}`;
+          const fillLayerId = `backend-threat-zone-fill-${zone.id}`;
+          const lineLayerId = `backend-threat-zone-line-${zone.id}`;
+          
+          return (
+            <Source
+              key={sourceId}
+              id={sourceId}
+              type="geojson"
+              data={geoJsonData}
+            >
+              {/* Fill layer */}
+              <Layer 
+                id={fillLayerId}
+                type="fill"
+                paint={{
+                  "fill-color": layerStyle.paint["fill-color"] || "rgba(255, 0, 0, 0.5)",
+                  "fill-opacity": 0.7,
+                }}
+              />
+              {/* Outline layer */}
+              <Layer
+                id={lineLayerId}
+                type="line"
+                paint={{
+                  "line-color": layerStyle.paint["fill-outline-color"] || "rgba(255, 0, 0, 1.0)",
+                  "line-width": 3,
+                  "line-opacity": 1.0,
+                }}
+              />
+            </Source>
+          );
+        })}
+
         {/* Drawing line for threat zone creation */}
         {drawingCoordinates.length > 0 && (
           <Source id="drawing-source" type="geojson" data={drawingGeoJSON as any}>
@@ -925,14 +1290,63 @@ const EnhancedMapContainer: React.FC = () => {
           </Source>
         )}
 
-        {/* Placed enemy markers */}
+        {/* Placed enemy markers (manually added) */}
         {placedEnemies.map((enemy) => (
           <Marker key={enemy.id} longitude={enemy.position.longitude} latitude={enemy.position.latitude}>
-            <div className="bg-gray-900 bg-opacity-75 p-1 rounded-full border-2 border-white flex items-center justify-center">
-              {getEnemyIcon(enemy.type)}
+            <div className="bg-gray-900 bg-opacity-75 p-1 rounded-full border-2 border-white flex items-center justify-center relative">
+              {getEnemyIcon(enemy.type as string)}
+              {/* Add risk indicator based on enemy type */}
+              <div 
+                className="absolute -top-1 -right-1 w-3 h-3 rounded-full border border-white"
+                style={{ 
+                  backgroundColor: 
+                    enemy.type === EnemyType.TANK ? '#ff0000' : 
+                    enemy.type === EnemyType.VEHICLE ? '#ffaa00' : 
+                    '#ff7700',
+                  opacity: 
+                    enemy.type === EnemyType.TANK ? 0.9 : 
+                    enemy.type === EnemyType.VEHICLE ? 0.7 : 
+                    0.5
+                }} 
+              />
             </div>
           </Marker>
         ))}
+        
+        {/* Backend enemy markers (from polling) */}
+        {backendEnemies.map((enemy) => {
+          // Use the first location point if available
+          if (!enemy.location || enemy.location.length === 0) return null;
+          
+          const firstLocation = enemy.location[0];
+          const enemyType = enemy.type as string;
+          
+          return (
+            <Marker 
+              key={`backend-${enemy.id}`} 
+              longitude={firstLocation.lng} 
+              latitude={firstLocation.lat}
+            >
+              <div className="bg-gray-900 bg-opacity-75 p-1 rounded-full border-2 border-red-500 flex items-center justify-center relative">
+                {getEnemyIcon(enemyType)}
+                {/* Show risk potential indicator */}
+                <div 
+                  className="absolute -top-1 -right-1 w-3 h-3 rounded-full border border-white" 
+                  style={{ 
+                    backgroundColor: 
+                      // Handle both 0-1 scale and 0-100 scale for risk potential
+                      enemy.risk_potential > 50 || enemy.risk_potential > 0.5 ? '#ff0000' : '#ffaa00',
+                    opacity: 
+                      // Handle both 0-1 scale and 0-100 scale for risk potential
+                      enemy.risk_potential > 1 ? 
+                        Math.min(1, enemy.risk_potential / 100 + 0.2) : 
+                        Math.min(1, enemy.risk_potential + 0.2)
+                  }} 
+                />
+              </div>
+            </Marker>
+          );
+        })}
       </Map>
 
       {/* Mission Control Buttons in top center */}
