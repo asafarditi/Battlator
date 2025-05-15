@@ -175,6 +175,9 @@ const EnhancedMapContainer: React.FC = () => {
   
   // State to track the selected route letter (A, B, C, etc.)
   const [selectedRouteLetter, setSelectedRouteLetter] = useState<string>("");
+  
+  // State for tracking the active route from backend
+  const [activeRoute, setActiveRoute] = useState<Route | null>(null);
 
   const mapRef = useRef<any>(null);
   const [viewState, setViewState] = useState({
@@ -253,11 +256,21 @@ const EnhancedMapContainer: React.FC = () => {
     }
 
     try {
-      await api.startMission(currentRoute.id);
+      // First explicitly select this route to ensure it's set as selected
+      selectRoute(currentRoute.id);
+      
+      // Start the mission with the selected route
+      const response = await api.startMission(currentRoute.id);
+      console.log("Mission start response:", response);
+      
+      // Start mission in the local state
       startMission(currentRoute.id);
 
       // Connect to WebSocket for position updates
       websocketService.connect();
+
+      // Set the active route to match the current route
+      setActiveRoute(currentRoute);
 
       // Add notification
       addNotification({
@@ -285,13 +298,19 @@ const EnhancedMapContainer: React.FC = () => {
     if (selectedRoute) {
       // Set it as the current route
       setCurrentRoute(selectedRoute);
+      
+      // Also update the active route for immediate display
+      setActiveRoute(selectedRoute);
 
       // Then confirm the route selection - this updates state in the store
       confirmRouteSelection();
 
       try {
+        console.log("Starting/updating mission with route:", selectedRoute.id);
+        
         // Always send the start-mission request with the new route ID
-        await api.startMission(selectedRoute.id);
+        const response = await api.startMission(selectedRoute.id);
+        console.log("Mission update response:", response);
 
         // If mission is already active, just update mission state with new route
         if (isMissionActive) {
@@ -399,10 +418,47 @@ const EnhancedMapContainer: React.FC = () => {
     }
   }, [routes, mapMode, setMapMode]);
 
+  // Poll for selected route during active missions
+  useEffect(() => {
+    // Poll regardless of mission state to ensure route visibility across tabs
+    const fetchSelectedRoute = async () => {
+      try {
+        const route = await api.fetchSelectedRoute();
+        if (route) {
+          console.log("Active route fetched:", route);
+          setActiveRoute(route);
+          
+          // If we have an active route but no current route, set it
+          // if (!currentRoute || isMissionActive) {
+            setCurrentRoute(route);
+          // }
+        } else if (isMissionActive) {
+          // If mission is active but no route found, try again sooner
+          console.log("No active route found while mission is active");
+        }
+      } catch (error) {
+        console.error("Error fetching selected route:", error);
+      }
+    };
+    
+    // Initial fetch
+    fetchSelectedRoute();
+    
+    // Set up interval for polling - more frequent polling (500ms) for better responsiveness
+    const interval = setInterval(fetchSelectedRoute, 500);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(interval);
+  }, [isMissionActive, currentRoute, setCurrentRoute]);
+
   // New function for route recalculation
   const recalculateRoutes = async () => {
     try {
       setIsRoutePlanning(true);
+      
+      // Clear selected route before recalculation
+      selectRoute("");
+      setCurrentRoute(null);
 
       // Get destination either from pendingDestination, selectedDestination, or from the end of current route
       const destination =
@@ -420,7 +476,7 @@ const EnhancedMapContainer: React.FC = () => {
       // Store the new routes
       if (newRoutes && newRoutes.length > 0) {
         setRoutes(newRoutes);
-
+        
         // Switch to route selection mode to let the user choose
         setMapMode("CHOOSING_ROUTE");
 
@@ -450,41 +506,6 @@ const EnhancedMapContainer: React.FC = () => {
     }
   };
 
-  // Handle confirm recalculation
-  const handleConfirmRecalculation = () => {
-    setShowRecalculationConfirm(false);
-    recalculateRoutes();
-  };
-
-  // Handle cancel recalculation
-  const handleCancelRecalculation = async () => {
-    setShowRecalculationConfirm(false);
-    setPendingDestination(null);
-
-    try {
-      // Send start mission request with current route ID to reaffirm the route choice
-      if (currentRoute) {
-        await api.startMission(currentRoute.id);
-
-        // Notify user that they're continuing with current route
-        addNotification({
-          type: "warning",
-          message: "Continuing with current route. Current position confirmed. Proceed with caution!",
-          duration: 5000,
-        });
-      }
-    } catch (error) {
-      console.error("Error confirming current route:", error);
-
-      // Still notify the user, but with a different message
-      addNotification({
-        type: "warning",
-        message: "Continuing with current route. Proceed with caution!",
-        duration: 5000,
-      });
-    }
-  };
-
   // Handle map click events
   const handleMapClick = async (event: any) => {
     const { lngLat } = event;
@@ -510,17 +531,19 @@ const EnhancedMapContainer: React.FC = () => {
         // Show route planning indicator
         setIsRoutePlanning(true);
 
-        // Clear any existing routes first to avoid stale data
+        // Clear any existing routes and selected route first to avoid stale data
         setRoutes([]);
+        selectRoute(""); // Clear the selected route ID
+        setCurrentRoute(null); // Also clear the current route
 
-        // Call the route planning API and get 3 routes
+        // Call the route planning API and get routes
         const routes: Route[] = await api.planRoute(currentPosition, clickedPosition);
 
-        // Set the first route as current route
-        setCurrentRoute(routes[0] as Route);
-
-        // Add all routes to the store
+        // Add all routes to the store (don't auto-select one)
         setRoutes(routes);
+        
+        // Switch to route selection mode
+        setMapMode("CHOOSING_ROUTE");
 
         // Add notification for routes calculated
         addNotification({
@@ -682,6 +705,13 @@ const EnhancedMapContainer: React.FC = () => {
 
         // Select the route and show countdown
         selectRoute(routeId);
+        
+        // Add notification for route selection
+        addNotification({
+          type: "info",
+          message: `Route ${routeLetter} selected.`,
+          duration: 3000,
+        });
       }
     }
   };
@@ -1054,6 +1084,132 @@ const EnhancedMapContainer: React.FC = () => {
     return () => clearInterval(interval);
   }, [isMissionActive, followMode, setCurrentPosition, setViewState]);
 
+  // Handle confirm recalculation
+  const handleConfirmRecalculation = () => {
+    setShowRecalculationConfirm(false);
+    recalculateRoutes();
+  };
+
+  // Handle cancel recalculation
+  const handleCancelRecalculation = async () => {
+    setShowRecalculationConfirm(false);
+    setPendingDestination(null);
+
+    try {
+      // Send start mission request with current route ID to reaffirm the route choice
+      if (currentRoute) {
+        await api.startMission(currentRoute.id);
+
+        // Notify user that they're continuing with current route
+        addNotification({
+          type: "warning",
+          message: "Continuing with current route. Current position confirmed. Proceed with caution!",
+          duration: 5000,
+        });
+      }
+    } catch (error) {
+      console.error("Error confirming current route:", error);
+
+      // Still notify the user, but with a different message
+      addNotification({
+        type: "warning",
+        message: "Continuing with current route. Proceed with caution!",
+        duration: 5000,
+      });
+    }
+  };
+
+  // Helper function to display route lines based on application state
+  const renderRoutes = () => {
+    // During active mission, show the active route from backend if available
+    if (isMissionActive && activeRoute) {
+      console.log("Rendering active route from backend:", activeRoute.id);
+      return (
+        <Source
+          key={`active-route-${activeRoute.id}`}
+          id="active-route-source"
+          type="geojson"
+          data={{
+            type: "Feature",
+            properties: {
+              routeId: activeRoute.id
+            },
+            geometry: {
+              type: "LineString",
+              coordinates: activeRoute.points.map((p) => [p.coordinates.longitude, p.coordinates.latitude]),
+            },
+          }}
+        >
+          <Layer {...{ ...getRouteLayer(true, 0), id: "active-route-layer" } as any} />
+        </Source>
+      );
+    }
+    
+    // Otherwise, display routes based on the current application state
+    return getRoutesToDisplay().map((route, index) => {
+      const isSelected = route.id === selectedRouteId;
+
+      return (
+        <React.Fragment key={route.id}>
+          {/* Glow effect for selected route */}
+          {isSelected && (
+            <Source
+              id={`route-glow-source-${route.id}`}
+              type="geojson"
+              data={{
+                type: "Feature",
+                properties: {
+                  routeId: route.id
+                },
+                geometry: {
+                  type: "LineString",
+                  coordinates: route.points.map((p) => [p.coordinates.longitude, p.coordinates.latitude]),
+                },
+              }}
+            >
+              <Layer {...({ ...getRouteGlowLayer(), id: `route-glow-layer-${route.id}` } as any)} />
+            </Source>
+          )}
+
+          {/* Main route layer */}
+          <Source
+            id={`route-source-${route.id}`}
+            type="geojson"
+            data={{
+              type: "Feature",
+              properties: {
+                routeId: route.id
+              },
+              geometry: {
+                type: "LineString",
+                coordinates: route.points.map((p) => [p.coordinates.longitude, p.coordinates.latitude]),
+              },
+            }}
+          >
+            <Layer {...({ ...getRouteLayer(isSelected, index), id: `route-layer-${route.id}` } as any)} />
+          </Source>
+
+          {/* Route labels for selection mode */}
+          {mapMode === "CHOOSING_ROUTE" && (
+            <Marker
+              longitude={route.points[Math.floor(route.points.length / 3)].coordinates.longitude}
+              latitude={route.points[Math.floor(route.points.length / 3)].coordinates.latitude}
+            >
+              <div
+                className={`p-2 rounded-full ${
+                  isSelected ? "bg-green-600" : "bg-blue-600"
+                } text-white font-bold flex items-center justify-center h-8 w-8 shadow-lg cursor-pointer`}
+                onClick={() => handleRouteClick(route.id, index)}
+              >
+                {String.fromCharCode(65 + index)}
+              </div>
+            </Marker>
+          )}
+        </React.Fragment>
+      );
+    });
+  };
+
   return (
     <div className="w-full h-screen relative">
       <Map
@@ -1072,64 +1228,7 @@ const EnhancedMapContainer: React.FC = () => {
         {selectedDestination && <DestinationMarker position={selectedDestination} />}
 
         {/* Route lines */}
-        {getRoutesToDisplay().map((route, index) => {
-          const isSelected = route.id === selectedRouteId;
-
-          return (
-            <React.Fragment key={route.id}>
-              {/* Glow effect for selected route */}
-              {isSelected && (
-                <Source
-                  id={`route-glow-source-${route.id}`}
-                  type="geojson"
-                  data={{
-                    type: "Feature",
-                    properties: {},
-                    geometry: {
-                      type: "LineString",
-                      coordinates: route.points.map((p) => [p.coordinates.longitude, p.coordinates.latitude]),
-                    },
-                  }}
-                >
-                  <Layer {...({ ...getRouteGlowLayer(), id: `route-glow-layer-${route.id}` } as any)} />
-                </Source>
-              )}
-
-              {/* Main route layer */}
-              <Source
-                id={`route-source-${route.id}`}
-                type="geojson"
-                data={{
-                  type: "Feature",
-                  properties: {},
-                  geometry: {
-                    type: "LineString",
-                    coordinates: route.points.map((p) => [p.coordinates.longitude, p.coordinates.latitude]),
-                  },
-                }}
-              >
-                <Layer {...({ ...getRouteLayer(isSelected, index), id: `route-layer-${route.id}` } as any)} />
-              </Source>
-
-              {/* Route labels for selection mode */}
-              {mapMode === "CHOOSING_ROUTE" && (
-                <Marker
-                  longitude={route.points[Math.floor(route.points.length / 3)].coordinates.longitude}
-                  latitude={route.points[Math.floor(route.points.length / 3)].coordinates.latitude}
-                >
-                  <div
-                    className={`p-2 rounded-full ${
-                      isSelected ? "bg-green-600" : "bg-blue-600"
-                    } text-white font-bold flex items-center justify-center h-8 w-8 shadow-lg cursor-pointer`}
-                    onClick={() => handleRouteClick(route.id, index)}
-                  >
-                    {String.fromCharCode(65 + index)}
-                  </div>
-                </Marker>
-              )}
-            </React.Fragment>
-          );
-        })}
+        {renderRoutes()}
 
         {/* Threat zones */}
         {threatZones.map((zone) => {

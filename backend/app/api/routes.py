@@ -13,7 +13,7 @@ logger = getLogger(__name__)
 router = APIRouter()
 pathfinder = PathFinderService()
 routes: dict[str, Route] = {}
-
+selected_route: Route = None
 formatted_threat_areas = []
 
 class StartMissionRequest(BaseModel):
@@ -71,11 +71,13 @@ async def api_calculate_route(route_request: RouteRequest):
 @router.post("/api/start-mission")
 async def start_mission(request: StartMissionRequest):
     # Start the movement in the background
+    global selected_route
     print(f"Starting mission with route {request.routeId}")
-    selected_route = routes.get(request.routeId)
-    if not selected_route:
+    new_selected_route = routes.get(request.routeId)
+    selected_route = new_selected_route 
+    if not new_selected_route:
         return {"error": "Route not found"}
-    asyncio.create_task(start_movement(selected_route))
+    asyncio.create_task(start_movement(new_selected_route))
     return {"success": True}
 
 @router.post("/api/stop-mission")
@@ -213,6 +215,25 @@ async def get_threat_areas():
         })
     
     return {"threatAreas": response_data}
+
+@router.get("/api/get-selected-route")
+async def get_selected_route():
+    global selected_route
+    print(f"Fetching selected route: {selected_route.id if selected_route else 'None'}")
+    
+    if selected_route:
+        # Count how many points are in the route
+        point_count = len(selected_route.path) if selected_route.path else 0
+        print(f"Selected route has {point_count} points")
+        
+        # Print the first and last points if they exist
+        if point_count > 0:
+            first_point = selected_route.path[0].coordinates
+            last_point = selected_route.path[-1].coordinates
+            print(f"First point: ({first_point.lat}, {first_point.lng})")
+            print(f"Last point: ({last_point.lat}, {last_point.lng})")
+    
+    return {"route": selected_route}
 
 @router.post("/api/reset-threat-areas")
 async def reset_threat_areas():
