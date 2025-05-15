@@ -10,7 +10,20 @@ import { getRouteLayer, getRouteGlowLayer, getThreatZoneLayer } from "./mapLayer
 import { Position as MapPosition } from "geojson";
 // @ts-ignore: turf.js typing issue
 import * as turf from "@turf/turf";
-import { User, Truck, AlertTriangle, Navigation, Clock, PlayCircle, PauseCircle, X, Target, Crosshair, Loader } from "lucide-react";
+import {
+  User,
+  Truck,
+  AlertTriangle,
+  Navigation,
+  Clock,
+  PlayCircle,
+  PauseCircle,
+  X,
+  Target,
+  Crosshair,
+  Loader,
+  RefreshCw,
+} from "lucide-react";
 import RouteCountdown from "../ui/RouteCountdown";
 import { websocketService } from "../../services/websocket";
 import { useNotificationStore } from "../../store/notificationStore";
@@ -48,6 +61,51 @@ interface PlacedEnemy {
   position: Position;
   type: EnemyType;
 }
+
+// Interface for route recalculation confirmation
+interface RouteRecalculationProps {
+  onConfirm: () => void;
+  onCancel: () => void;
+  enemyType: string;
+}
+
+// Route recalculation confirmation component
+const RouteRecalculationConfirm: React.FC<RouteRecalculationProps> = ({ onConfirm, onCancel, enemyType }) => {
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
+      <div className="bg-gray-900 text-white rounded-lg shadow-lg p-6 max-w-sm w-full border border-gray-700 animate-fade-in">
+        <div className="text-center mb-4">
+          <div className="flex justify-center mb-3">
+            <div className="h-16 w-16 rounded-full bg-red-600 flex items-center justify-center">
+              <AlertTriangle size={32} />
+            </div>
+          </div>
+          <h3 className="text-xl font-bold mb-2">Threat Detected!</h3>
+          <p className="text-gray-300 text-sm mb-4">
+            {enemyType} detected intersecting with your route. Would you like to recalculate safer routes or continue with your current
+            route?
+          </p>
+        </div>
+
+        <div className="flex justify-between space-x-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-md flex items-center justify-center"
+          >
+            Continue Current Route
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-md flex items-center justify-center"
+          >
+            <RefreshCw size={18} className="mr-1" />
+            Find New Routes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const EnhancedMapContainer: React.FC = () => {
   const {
@@ -95,6 +153,11 @@ const EnhancedMapContainer: React.FC = () => {
 
   // State to track the selected route letter (A, B, C, etc.)
   const [selectedRouteLetter, setSelectedRouteLetter] = useState<string>("");
+
+  // Add state for route recalculation confirmation
+  const [showRecalculationConfirm, setShowRecalculationConfirm] = useState<boolean>(false);
+  const [recalculationEnemyType, setRecalculationEnemyType] = useState<string>("");
+  const [pendingDestination, setPendingDestination] = useState<Position | null>(null);
 
   const mapRef = useRef<any>(null);
   const [viewState, setViewState] = useState({
@@ -319,6 +382,92 @@ const EnhancedMapContainer: React.FC = () => {
     }
   }, [routes, mapMode, setMapMode]);
 
+  // New function for route recalculation
+  const recalculateRoutes = async () => {
+    try {
+      setIsRoutePlanning(true);
+
+      // Get destination either from pendingDestination, selectedDestination, or from the end of current route
+      const destination =
+        pendingDestination ||
+        selectedDestination ||
+        (currentRoute && currentRoute.points.length > 0 ? currentRoute.points[currentRoute.points.length - 1].coordinates : null);
+
+      if (!destination) {
+        throw new Error("No destination available for route planning");
+      }
+
+      // Get new routes bypassing the threat zones
+      const newRoutes: Route[] = await api.planRoute(currentPosition, destination);
+
+      // Store the new routes
+      if (newRoutes && newRoutes.length > 0) {
+        setRoutes(newRoutes);
+
+        // Switch to route selection mode to let the user choose
+        setMapMode("CHOOSING_ROUTE");
+
+        addNotification({
+          type: "info",
+          message: "New routes calculated. Please select a route to continue your mission.",
+          duration: 8000,
+        });
+      } else {
+        addNotification({
+          type: "danger",
+          message: "Unable to find alternative routes. Continue with caution!",
+          duration: 8000,
+        });
+      }
+    } catch (error) {
+      console.error("Error finding alternative routes:", error);
+      addNotification({
+        type: "danger",
+        message: "Failed to calculate alternative routes. Continue with caution!",
+        duration: 5000,
+      });
+    } finally {
+      setIsRoutePlanning(false);
+      // Clear pending destination after recalculation
+      setPendingDestination(null);
+    }
+  };
+
+  // Handle confirm recalculation
+  const handleConfirmRecalculation = () => {
+    setShowRecalculationConfirm(false);
+    recalculateRoutes();
+  };
+
+  // Handle cancel recalculation
+  const handleCancelRecalculation = async () => {
+    setShowRecalculationConfirm(false);
+    setPendingDestination(null);
+
+    try {
+      // Send start mission request with current route ID to reaffirm the route choice
+      if (currentRoute) {
+        await api.startMission(currentRoute.id);
+
+        // Notify user that they're continuing with current route
+        addNotification({
+          type: "warning",
+          message: "Continuing with current route. Current position confirmed. Proceed with caution!",
+          duration: 5000,
+        });
+      }
+    } catch (error) {
+      console.error("Error confirming current route:", error);
+
+      // Still notify the user, but with a different message
+      addNotification({
+        type: "warning",
+        message: "Continuing with current route. Proceed with caution!",
+        duration: 5000,
+      });
+    }
+  };
+
   // Handle map click events
   const handleMapClick = async (event: any) => {
     const { lngLat } = event;
@@ -437,66 +586,30 @@ const EnhancedMapContainer: React.FC = () => {
               }
             });
 
-            // If in a mission and there's an intersection with the route, request alternative routes
+            // If in a mission and there's an intersection with the route, ask user for confirmation
             if (isMissionActive && hasIntersection) {
+              // Save the destination for later use if recalculation is confirmed
+              const destination =
+                selectedDestination ||
+                (currentRoute && currentRoute.points.length > 0 ? currentRoute.points[currentRoute.points.length - 1].coordinates : null);
+
+              if (destination) {
+                setPendingDestination(destination);
+              }
+
+              // Show enemy type in a more readable format
+              const formattedEnemyType = selectedEnemyType.charAt(0).toUpperCase() + selectedEnemyType.slice(1);
+              setRecalculationEnemyType(formattedEnemyType);
+
+              // Show confirmation dialog
+              setShowRecalculationConfirm(true);
+
               // Add notification
               addNotification({
                 type: "danger",
-                message: `${
-                  selectedEnemyType.charAt(0).toUpperCase() + selectedEnemyType.slice(1)
-                } enemy detected intersecting with your route! Finding alternative routes...`,
+                message: `${formattedEnemyType} enemy detected intersecting with your route!`,
                 duration: 5000,
               });
-
-              // Request new routes
-              (async () => {
-                try {
-                  setIsRoutePlanning(true);
-
-                  // Get destination either from selectedDestination or from the end of current route
-                  const destination =
-                    selectedDestination ||
-                    (currentRoute && currentRoute.points.length > 0
-                      ? currentRoute.points[currentRoute.points.length - 1].coordinates
-                      : null);
-
-                  if (!destination) {
-                    throw new Error("No destination available for route planning");
-                  }
-
-                  // Get new routes bypassing the threat zones
-                  const newRoutes: Route[] = await api.planRoute(currentPosition, destination);
-
-                  // Store the new routes
-                  if (newRoutes && newRoutes.length > 0) {
-                    setRoutes(newRoutes);
-
-                    // Switch to route selection mode to let the user choose
-                    setMapMode("CHOOSING_ROUTE");
-
-                    addNotification({
-                      type: "warning",
-                      message: "Threat detected on your route! Please select a new route to continue your mission.",
-                      duration: 8000,
-                    });
-                  } else {
-                    addNotification({
-                      type: "danger",
-                      message: "Unable to find alternative routes. Continue with caution!",
-                      duration: 8000,
-                    });
-                  }
-                } catch (error) {
-                  console.error("Error finding alternative routes:", error);
-                  addNotification({
-                    type: "danger",
-                    message: "Failed to calculate alternative routes. Continue with caution!",
-                    duration: 5000,
-                  });
-                } finally {
-                  setIsRoutePlanning(false);
-                }
-              })();
             }
             // Only show notification if not in a mission or if there's no intersection
             else if (!isMissionActive) {
@@ -945,6 +1058,15 @@ const EnhancedMapContainer: React.FC = () => {
             {followMode ? "Following" : "Follow Me"}
           </button>
         </div>
+      )}
+
+      {/* Route recalculation confirmation */}
+      {showRecalculationConfirm && (
+        <RouteRecalculationConfirm
+          onConfirm={handleConfirmRecalculation}
+          onCancel={handleCancelRecalculation}
+          enemyType={recalculationEnemyType}
+        />
       )}
     </div>
   );
