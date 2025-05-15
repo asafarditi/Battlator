@@ -30,7 +30,7 @@ async def plan_route(request: RouteRequest):
     
     new_routes = {}
     for i, path in enumerate(path_points):
-        path_coords = [PathPoint(coordinates=Coordinates(lat=pt[1], lng=pt[0], alt=1.1), threatScore=0.0) for pt in path]
+        path_coords = [PathPoint(coordinates=Coordinates(lat=pt[1], lng=pt[0], alt=1.1), threatScore=pt[2]) for pt in path]
         
         # Calculate total distance by summing distances between consecutive points
         total_distance = 0
