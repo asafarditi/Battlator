@@ -327,4 +327,54 @@ export const api = {
       return null;
     }
   },
+
+  /**
+   * Fetches the currently selected route from the backend
+   */
+  fetchSelectedRoute: async (): Promise<Route | null> => {
+    try {
+      const response = await fetch(`${api_path}/api/get-selected-route`, {
+        method: "GET",
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0"
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch selected route");
+      }
+      
+      const data = await response.json();
+      console.log("Selected route response:", data);
+      
+      // If no route is selected or there's an error
+      if (!data.route) {
+        return null;
+      }
+
+      // Make sure the route has valid path data
+      if (!data.route.path || !Array.isArray(data.route.path) || data.route.path.length === 0) {
+        console.warn("Selected route has no valid path data");
+        return null;
+      }
+      
+      // Convert backend route format to frontend format
+      return {
+        id: data.route.id || `route-${Date.now()}`,
+        points: data.route.path.map((point: any) => ({
+          coordinates: {
+            latitude: point.coordinates?.lat || 0,
+            longitude: point.coordinates?.lng || 0,
+            altitude: point.coordinates?.alt || 0,
+          },
+          threatScore: point.threatScore || 0,
+        })),
+      };
+    } catch (error) {
+      console.error("Error fetching selected route:", error);
+      return null;
+    }
+  },
 };
