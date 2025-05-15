@@ -5,7 +5,7 @@ import { generateId, simulateNetworkDelay } from "../utils/helpers";
  * Mock API service for backend communication
  * TODO: Replace with actual API calls when backend is available
  */
-const api_path = "http://127.0.0.1:8000";
+const api_path = "http://192.168.0.2:8000";
 
 export enum EnemyType {
   PERSON = "person",
